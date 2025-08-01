@@ -1,26 +1,14 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <title>ISS Overlay</title>
-  <style>
-    body {
-      margin: 0;
-      padding: 0;
-      background: transparent;
-      overflow: hidden;
-    }
-    #map-container {
-      width: 734px;
-      height: 400px;
-    }
-  </style>
+    <title>ISS Overlay Map</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        html, body { margin:0; padding:0; background:transparent; overflow:hidden; }
+        iframe { border:0; width:100vw; height:100vh; }
+    </style>
 </head>
 <body>
-  <div id="map-container"></div>
-
-  <!-- Load your orbit scripts -->
-  <script src="Orbit.js"></script>
-  <script src="Stats.js"></script>
+    <iframe src="https://isstracker.spaceflight.esa.int/" allowtransparency="true"></iframe>
 </body>
 </html>
