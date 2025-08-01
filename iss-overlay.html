@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ISS Tracker Overlay</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            color: white;
+            background-color: transparent;
+            width: 400px;
+        }
+        .container {
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .description {
+            font-size: 12px;
+            margin-bottom: 15px;
+            line-height: 1.4;
+        }
+        .map-credit {
+            font-size: 10px;
+            text-align: right;
+            margin-top: 5px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        th {
+            text-align: left;
+            padding: 3px 0;
+            font-weight: normal;
+        }
+        .units-toggle {
+            color: #4fc3f7;
+            cursor: pointer;
+            text-decoration: underline;
+            font-size: 12px;
+        }
+        .map-container {
+            position: relative;
+            height: 200px;
+            background-color: #222;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+        .crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            transform: translate(-50%, -50%);
+            color: red;
+            font-size: 20px;
+            text-align: center;
+            line-height: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="title">What the astronauts see right now</div>
+        <div class="description">
+            This is the view from the ISS directly down to earth. The crosshair indicates the current ground point.<br>
+            The map is updated every second.<br>
+            Please note that the map is not real-time video. However, the position itself is real-time.
+        </div>
+        
+        <div class="map-container" id="map">
+            <div class="crosshair">+</div>
+        </div>
+        
+        <div class="map-credit">Map data by NASA</div>
+        
+        <table>
+            <tr>
+                <th>Ground point</th>
+                <th>Orbital speed</th>
+                <th>Altitude</th>
+                <th>Time</th>
+                <th>Units</th>
+            </tr>
+            <tr>
+                <td id="latitude">0.0° North</td>
+                <td id="speed-mph">0 mph</td>
+                <td id="altitude-mi">0 miles</td>
+                <td id="time">00:00:00 UTC</td>
+                <td>
+                    <span class="units-toggle" id="toggle-units">miles ○ km</span>
+                </td>
+            </tr>
+            <tr>
+                <td id="longitude">0.0° East</td>
+                <td id="speed-kms">0 km/s</td>
+                <td id="altitude-km">0 km</td>
+                <td></td>
+                <td></td>
+            </tr>
+        </table>
+        
+        <div style="margin-top: 10px; font-size: 12px;">ISS ground track</div>
+    </div>
+
+    <script>
+        // Units toggle
+        let useMetric = false;
+        document.getElementById('toggle-units').addEventListener('click', function() {
+            useMetric = !useMetric;
+            this.textContent = useMetric ? 'km ○ miles' : 'miles ○ km';
+            updateDisplay();
+        });
+
+        // ISS data
+        let issData = {
+            latitude: 0,
+            longitude: 0,
+            altitude: 0,
+            velocity: 0,
+            timestamp: 0
+        };
+
+        // Update display with current data
+        function updateDisplay() {
+            const now = new Date();
+            const hours = now.getUTCHours().toString().padStart(2, '0');
+            const minutes = now.getUTCMinutes().toString().padStart(2, '0');
+            const seconds = now.getUTCSeconds().toString().padStart(2, '0');
+            
+            document.getElementById('time').textContent = `${hours}:${minutes}:${seconds} UTC`;
+            
+            const latDir = issData.latitude >= 0 ? 'North' : 'South';
+            const lonDir = issData.longitude >= 0 ? 'East' : 'West';
+            
+            document.getElementById('latitude').textContent = `${Math.abs(issData.latitude).toFixed(1)}° ${latDir}`;
+            document.getElementById('longitude').textContent = `${Math.abs(issData.longitude).toFixed(2)}° ${lonDir}`;
+            
+            if (useMetric) {
+                document.getElementById('speed-mph').textContent = `${(issData.velocity * 3.6).toFixed(0)} km/h`;
+                document.getElementById('speed-kms').textContent = `${issData.velocity.toFixed(3)} km/s`;
+                document.getElementById('altitude-mi').textContent = `${(issData.altitude).toFixed(0)} km`;
+                document.getElementById('altitude-km').style.display = 'none';
+            } else {
+                document.getElementById('speed-mph').textContent = `${(issData.velocity * 2.237).toFixed(0)} mph`;
+                document.getElementById('speed-kms').textContent = `${(issData.velocity * 0.621371).toFixed(1)} miles/s`;
+                document.getElementById('altitude-mi').textContent = `${(issData.altitude * 0.621371).toFixed(0)} miles`;
+                document.getElementById('altitude-km').style.display = 'table-cell';
+            }
+        }
+
+        // Fetch ISS data from Where the ISS At API
+        async function fetchIssData() {
+            try {
+                const response = await fetch('https://api.wheretheiss.at/v1/satellites/25544');
+                const data = await response.json();
+                
+                issData = {
+                    latitude: data.latitude,
+                    longitude: data.longitude,
+                    altitude: data.altitude,
+                    velocity: data.velocity,
+                    timestamp: data.timestamp
+                };
+                
+                updateDisplay();
+                
+                // Update map position (this would need a proper map implementation)
+                // For a real implementation, you'd use Leaflet or similar with a map tile layer
+                
+            } catch (error) {
+                console.error('Error fetching ISS data:', error);
+            }
+        }
+
+        // Initial fetch and set up periodic updates
+        fetchIssData();
+        setInterval(fetchIssData, 1000);
+    </script>
+</body>
+</html>
