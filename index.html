@@ -1,0 +1,114 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>ISS Live Overlay</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: transparent;
+      color: white;
+      font-family: Arial, sans-serif;
+    }
+    .overlay {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      background: rgba(0, 0, 0, 0.4);
+      padding: 20px;
+      box-sizing: border-box;
+    }
+    .panel {
+      background: rgba(0, 0, 0, 0.75);
+      padding: 15px 25px;
+      border-radius: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+    .status {
+      display: flex;
+      gap: 20px;
+    }
+    .badge {
+      padding: 5px 15px;
+      border-radius: 5px;
+      background: red;
+      font-weight: bold;
+    }
+    .info {
+      display: flex;
+      flex-direction: column;
+    }
+    .demographics {
+      font-size: 0.85em;
+      color: #ccc;
+    }
+  </style>
+</head>
+<body>
+  <div class="overlay">
+    <div class="panel">
+      <div class="status">
+        <div class="info">
+          <div id="location" style="font-size: 1.5em;">Loading...</div>
+          <div id="datetime">---</div>
+          <div id="iss-stats">Speed: -- km/s &nbsp; Elevation: -- km</div>
+          <div id="coords">--° N, --° E</div>
+        </div>
+        <div class="badge" id="livestatus">LIVE NOW</div>
+      </div>
+      <div class="demographics" id="demographics">
+        Capital: --<br />
+        Population: --<br />
+        Median Age: --<br />
+        Renewable Energy: --
+      </div>
+    </div>
+  </div>
+
+  <script>
+    async function fetchISS() {
+      const res = await fetch('https://api.wheretheiss.at/v1/satellites/25544');
+      const data = await res.json();
+      const { latitude, longitude, altitude, velocity } = data;
+
+      document.getElementById('iss-stats').innerText = 
+        `Speed: ${(velocity / 1000).toFixed(2)} km/s   Elevation: ${altitude.toFixed(1)} km`;
+      document.getElementById('coords').innerText = 
+        `${latitude.toFixed(2)}° ${latitude >= 0 ? 'N' : 'S'}, ${longitude.toFixed(2)}° ${longitude >= 0 ? 'E' : 'W'}`;
+
+      const now = new Date().toUTCString();
+      document.getElementById('datetime').innerText = now;
+
+      fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`)
+        .then(res => res.json())
+        .then(loc => {
+          const name = loc.address.ocean || loc.address.state || loc.address.country || 'Over Earth';
+          document.getElementById('location').innerText = name;
+          const country = loc.address.country_code;
+          fetch(`https://raw.githubusercontent.com/owid/covid-19-data/master/public/data/owid/owid-${country.toUpperCase()}.json`)
+            .then(r => r.json())
+            .then(d => {
+              const pop = d.population.toLocaleString();
+              const age = d.median_age || '--';
+              const energy = d.renewables_share_energy || '--';
+              const capital = d.capital_city || '--';
+              document.getElementById('demographics').innerHTML =
+                `Capital: ${capital}<br>Population: ${pop}<br>Median Age: ${age}<br>Renewable Energy: ${energy}%`;
+            }).catch(() => {
+              document.getElementById('demographics').innerHTML = 'No demographic data found.';
+            });
+        });
+    }
+
+    fetchISS();
+    setInterval(fetchISS, 10000);
+  </script>
+</body>
+</html>
