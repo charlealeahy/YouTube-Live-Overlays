@@ -12,13 +12,6 @@
       text-align: center;
       padding: 20px;
     }
-    img {
-      max-width: 100%;
-      height: auto;
-      border: 4px solid #fff;
-      border-radius: 12px;
-      box-shadow: 0 0 20px #00f0ff;
-    }
     h1 {
       font-size: 2em;
       margin-bottom: 10px;
@@ -26,19 +19,20 @@
     p {
       font-size: 1em;
       color: #aaa;
+      margin-bottom: 20px;
     }
   </style>
 </head>
 <body>
   <h1>Live ISS Tracker</h1>
   <p>Updated every 15 seconds from NASA HDEV.</p>
-  <img id="iss-map" src="https://eol.jsc.nasa.gov/SEDS/SEDS.css/tracker/map2.jpg" alt="Live ISS Tracker Map">
+  <img id="iss-map" src="https://eol.jsc.nasa.gov/SEDS/SEDS.css/tracker/map2.jpg" alt="Live ISS Tracker Map" style="max-width:100%; height:auto; border: 4px solid #00ffff; border-radius: 12px; box-shadow: 0 0 20px #00f0ff;">
 
   <script>
     setInterval(() => {
       const img = document.getElementById('iss-map');
-      img.src = "https://eol.jsc.nasa.gov/SEDS/SEDS.css/tracker/map2.jpg?t=" + new Date().getTime(); // prevent caching
-    }, 15000); // update every 15s
+      img.src = "https://eol.jsc.nasa.gov/SEDS/SEDS.css/tracker/map2.jpg?t=" + new Date().getTime();
+    }, 15000);
   </script>
 </body>
 </html>
