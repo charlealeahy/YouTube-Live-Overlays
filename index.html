@@ -1,0 +1,38 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>ISS Enhanced Overlay</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="iss-overlay">
+    <div id="left-panel">
+      <iframe id="orbit-map" src="https://www.heavens-above.com/OrbitDisplay.aspx?satid=25544" width="500" height="250"></iframe>
+      <iframe id="lightning-map" src="https://www.lightningmaps.org/?lang=en" width="500" height="250"></iframe>
+    </div>
+
+    <div id="center-panel">
+      <div id="region-country">
+        <span id="location">Loading...</span>
+        <span id="flag"></span>
+      </div>
+      <div id="datetime">Time...</div>
+      <div id="sunset">Sunset info...</div>
+      <div id="coords">Lat, Lon...</div>
+      <div id="speed-alt">Speed & Alt...</div>
+      <div id="country-data">Loading country data...</div>
+      <div id="status">LIVE NOW</div>
+    </div>
+
+    <div id="right-panel">
+      <video autoplay muted loop id="dock-cam">
+        <source src="https://path.to/sample.mp4" type="video/mp4">
+      </video>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
