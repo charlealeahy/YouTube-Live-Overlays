@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta charset="UTF-8"><title>ISS Live Overlay</title>
+    <script src="v6.3.1-dist/ol.js"></script>
+    <link rel="stylesheet" href="v6.3.1-dist/ol.css" type="text/css">
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script src="https://viglino.github.io/ol-ext/dist/ol-ext.js"></script>
+    <link rel="stylesheet" href="https://viglino.github.io/ol-ext/dist/ol-ext.css" type="text/css">
+    <link href="https://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700" rel="stylesheet" />
+    <link rel="stylesheet" href="./assets/css/theme.css">
+    <link href="./fontawesome-free-6.6.0-web/css/fontawesome.css" rel="stylesheet" />
+    <link href="./fontawesome-free-6.6.0-web/css/brands.css" rel="stylesheet" />
+    <link href="./fontawesome-free-6.6.0-web/css/solid.css" rel="stylesheet" />
+    <script src="https://astroviewer.net/widgets/widgets/orbit.js"></script>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #map {
+            flex-grow: 1;
+            width: 100%;
+			
+        }
+#panel_graph {
+  position: absolute;
+  bottom: 150px;
+  left: 20px;
+ 
+  background-color: transparent; 
+  
+}
+#panel_graph1 {
+  position: absolute;
+   bottom: 150px;
+ left:315px;
+ 
+  background-color: transparent; 
+  
+}
+       
+
+        #main {
+            margin-left: 250px;
+            transition: margin-left 0.3s;
+            padding: 16px;
+        }
+		   
+        
+    </style>
+</head>
+
+<body>
+
+    <!-- Main Content -->
+    <!-- <div id="main"> -->
+        <!-- <div id="map">
+          <iframe width="1000" height="600" src="https://www.youtube.com/watch?v=xRPjKQtRXR8" frameborder="0" allowfullscreen></iframe>
+        </div> -->
+    <!-- </div> -->
+     <!-- 16:9 aspect ratio -->
+<div class="card-body"  >
+  <iframe width="1240" height="420" src="https://www.youtube.com/embed/xRPjKQtRXR8" title="🔴 Live Now: 24/7 NASA Live Stream of Earth from Space (ISS)" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+</div>
+<!-- <div class="card border-info" id = "panel_graph" style = "display :block;">
+                <div class="card-header" style = "background-color:#c4edb7; color: black; text-align:center">
+                    <b>Nasa Live</b>
+                </div> -->
+  <!-- <div class="card-body" > 
+
+   <div id="container1" style="height: 170px; width: 250px; display :block" >
+    <iframe width="250" height="170" src="https://www.youtube.com/embed/H999s0P1Er0" title="Live High-Definition Views from the International Space Station (Official NASA Stream)" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" ></iframe>
+   </div>
+ 
+</div>
+  </div>  -->
+  <!------------------------------------------>
+<!-- <div class="card" id = "panel_graph1" style = "display :block;">
+                 <div class="card-header" style = "background-color:#c4edb7; color: black; text-align:center">
+                    <b>Number of Plantation Sites</b>
+                </div> -->
+  <!-- <div class="card-body" > 
+
+   
+   <div id="av-orbit" style="height: 170px; width: 250px; display :block">
+    
+    
+</div>
+
+  
+
+
+</div>
+  </div> --> 
+  <!----------------------------->
+  <style>
+    body { margin: 0; padding: 0; background: transparent; color: white; font-family: Arial; }
+    .panel { position: absolute; bottom: 20px; left: 20px; right: 20px;
+      background: rgba(0,0,0,0.75); padding: 20px; border-radius: 10px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .info { display: flex; flex-direction: column; }
+    .badge { padding: 5px 15px; border-radius: 5px; background: red; font-weight: bold;}
+    .offline { background: blue !important; }
+
+
+  </style>
+</head>
+<body>
+  <div class="panel">
+    <div class="info">
+      <div id="location" style="font-size:1.5em;">--</div>
+      <div id="datetime">--</div>
+      <div id="stats">Speed: -- km/s • Elev: -- km</div>
+      <div id="coords">--° N, --° E</div>
+    </div>
+    <div id="livestatus" class="badge">LIVE NOW</div>
+    <div id="demographics" style="text-align:right; font-size:0.85em; color:#ccc;">
+      Capital: --<br>Population: --<br>Median Age: --<br>Renewables: --%
+    </div>
+  </div>
+
+
+    <!-- Footer -->
+    <footer>
+        
+    </footer>
+
+    <!-- Scripts -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.2/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script>
+
+      var avOrbitProperties = {
+            size: 'medium',
+            lang: 'en'
+        };
+	async function fetchISS() {
+      try {
+        const res = await fetch('https://api.wheretheiss.at/v1/satellites/25544');
+        const data = await res.json();
+        const { latitude, longitude, altitude, velocity } = data;
+        const now = new Date().toUTCString();
+
+        document.getElementById('datetime').innerText = now;
+        document.getElementById('stats').innerText =
+          `Speed: ${(velocity/1000).toFixed(2)} km/s • Elev: ${altitude.toFixed(1)} km`;
+        document.getElementById('coords').innerText =
+          `${latitude.toFixed(2)}° ${latitude>=0?'N':'S'}, ${longitude.toFixed(2)}° ${longitude>=0?'E':'W'}`;
+
+        // Use simple fallback: lat/lon
+        document.getElementById('location').innerText =
+          `Lat ${latitude.toFixed(2)}, Lon ${longitude.toFixed(2)}`;
+
+        // Attempt demographic fetch (may fail)
+        const country = 'world'; // simplified - full integration may fail via GitHub Pages
+        document.getElementById('demographics').innerHTML =
+          `Population: --<br>Median Age: --<br>Renewables: --%`;
+        
+      } catch (e) {
+        console.error(e);
+        const badge = document.getElementById('livestatus');
+        badge.innerText = 'OFFLINE';
+        badge.classList.add('offline');
+      }
+    }
+
+    fetchISS();
+    setInterval(fetchISS, 10000);
+    </script>
+
+</body>
+
+</html>
