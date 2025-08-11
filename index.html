@@ -1,172 +1,196 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ISS Overlay — Live Panel (GitHub Pages)</title>
-  <style>
-    * { box-sizing: border-box; }
-    html, body { margin:0; padding:0; width:100%; height:100%; background:#0e0f13; color:#e7eaf0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, 'Helvetica Neue', Arial, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif; }
-    a { color: inherit; }
-    .wrap { width: 1280px; height: 200px; padding: 10px; display: grid; grid-template-columns: 1fr; grid-auto-rows: auto; gap: 8px; }
-    .title { background: linear-gradient(180deg, #13161d, #0f1218); border: 1px solid #1e2330; border-radius: 12px; padding: 14px 18px; font-size: 44px; font-weight: 600; letter-spacing: 0.4px; text-align: left; display:flex; align-items:center; gap:12px; }
-    .flag { width: 48px; height: 36px; border-radius:6px; object-fit:cover; display:none; box-shadow: 0 0 0 1px #1f2533, 0 6px 18px rgba(0,0,0,.25); }
-    .row { display: grid; grid-template-columns: 180px 1fr; gap: 12px; }
-    .thumbbox { position: relative; background: #10131a; border: 1px solid #1b2230; border-radius: 10px; overflow: hidden; height: 90px; }
-    .thumbbox .thumb { width: 100%; height: 100%; object-fit: cover; opacity: .9; filter: saturate(0.9) contrast(1.05) brightness(0.95); }
-    .badge { position: absolute; left: 8px; bottom: 8px; padding: 5px 10px; border-radius: 6px; font-weight: 700; font-size: 14px; letter-spacing: .5px; background: #a01414; color: #fff; box-shadow: 0 3px 12px rgba(160,20,20,.45); }
-    .badge.offline { background: #2b6cb0; box-shadow: 0 3px 12px rgba(60,110,180,.45); }
-    .infobox { background: linear-gradient(180deg, #13161d, #0f1218); border: 1px solid #1e2330; border-radius: 10px; padding: 10px 14px; font-size: 18px; display: grid; grid-template-columns: 1fr; line-height: 1.5; }
-    .infotitle { font-weight: 800; font-size: 22px; color:#cdd5ea; text-shadow: 0 1px 0 rgba(0,0,0,.6); margin-bottom: 4px; }
-    .smallrow { display:flex; gap:24px; flex-wrap:wrap; opacity:.95; }
-    .mono { font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
-    .transparent-bg { background: transparent !important; }
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=440, initial-scale=1" />
+<title>ISS Overlay 440×240</title>
+<style>
+:root{--bg:#0b0f14;--panel:#1b2229;--panel2:#11161b;--stroke:#3b4248;
+--text:#e6eef5;--muted:#9aa7b3;--live:#b11313}
+*{box-sizing:border-box;font-family:"Segoe UI",Roboto,Arial,sans-serif}
+html,body{margin:0;background:transparent;width:440px;height:240px;overflow:hidden}
+.wrap{width:440px;height:240px;color:var(--text)}
+.title{height:84px;display:flex;align-items:center;gap:12px;padding:0 14px;
+background:linear-gradient(#161c22,#0d1216);border:1px solid #2c3338;border-bottom:none;
+border-top-left-radius:10px;border-top-right-radius:10px}
+.flag{width:44px;height:28px;border-radius:4px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#2a3440;border:1px solid #45515c}
+.flag img{width:100%;height:100%;object-fit:cover;display:block}
+.flag .ocean-dot{width:14px;height:14px;border-radius:50%;background:#62b0ff;box-shadow:0 0 0 3px #14334d inset}
+.name{font-weight:600;font-size:36px;letter-spacing:.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
+.row{height:156px;display:grid;grid-template-columns:128px 12px 1fr;background:var(--panel2);border:1px solid #2c3338;border-top:none;border-bottom-left-radius:10px;border-bottom-right-radius:10px;padding:12px}
+.thumb{width:128px;height:96px;border-radius:6px;overflow:hidden;background:#4f5c64;border:1px solid #9aa6b1;position:relative}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.live{position:absolute;left:0;bottom:-26px;transform:translateY(-6px);background:var(--live);color:#fff;font-weight:800;font-size:14px;padding:5px 10px;border-radius:6px;box-shadow:0 2px 8px #0007}
+.panel{background:var(--panel);border:1px solid var(--stroke);border-radius:6px;padding:10px 12px;display:grid;grid-template-rows:auto auto auto auto;gap:6px}
+.now{font-weight:800;font-size:20px;color:#cfd8df;margin-bottom:2px}
+.line{display:flex;gap:12px;color:var(--muted);font-size:18px}
+.line b{color:var(--text);font-weight:600}
+.sp{width:12px}
+.credit{position:absolute;right:8px;bottom:8px;font-size:10px;color:#9fb1c4;opacity:.7}
+</style>
 </head>
 <body>
-  <div class="wrap" id="app">
-    <div class="title" id="placeTitle">
-      <img id="flag" class="flag" alt="Country flag" />
-      <span id="placeLabel">Loading…</span>
+<div class="wrap">
+  <div class="title">
+    <div class="flag" id="flagBox"><div class="ocean-dot" id="oceanDot" hidden></div></div>
+    <div class="name" id="placeName">—</div>
+  </div>
+  <div class="row">
+    <div class="thumb">
+      <img id="thumbImg" alt="Location image"/>
+      <div class="live" id="liveBadge">LIVE NOW</div>
+      <div class="credit" id="credit" hidden></div>
     </div>
-    <div class="row">
-      <div class="thumbbox">
-        <img class="thumb" id="thumb" src="https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=900&q=80" alt="Ocean / Earth" />
-        <div class="badge" id="liveBadge">LIVE NOW</div>
-      </div>
-      <div class="infobox">
-        <div class="infotitle" id="phase">Now: —</div>
-        <div class="smallrow mono"><div id="utc">—</div></div>
-        <div class="smallrow mono"><div id="speed">—</div><div id="elev">—</div></div>
-        <div class="smallrow mono"><div id="coords">—</div></div>
-      </div>
+    <div class="sp"></div>
+    <div class="panel">
+      <div class="now" id="nowText">Now: Sunset (1 of 16)</div>
+      <div class="line"><span id="date">—</span><b id="time">— UTC</b></div>
+      <div class="line"><span id="speed">— km/s</span><b id="elev">Elev: — km</b></div>
+      <div class="line"><span id="coords">—</span></div>
     </div>
   </div>
-  <script>
-    const CONFIG = {
-      pollMs: 5000,
-      useTransparentBg: false,
-      showLiveBadge: true,
-      liveBadgeMode: "youtube",
-      youtubeApiKey: "AIzaSyA2Z-FW4t_vH7oecrBuHvSezTsMoXOgjbI",
-      youtubeVideoId: "16vw0K7tQ5M",
-      geonamesUsername: "charlesleahy",
-      flagCdnBase: "https://flagcdn.com",
-    };
-    if (CONFIG.useTransparentBg) {
-      document.querySelectorAll('.title, .infobox, body').forEach(el => el.classList.add('transparent-bg'));
-      document.body.style.background = 'transparent';
+</div>
+
+<script>
+/* ---------- CONFIG ---------- */
+const UNSPLASH_ACCESS_KEY = "YOUR_UNSPLASH_ACCESS_KEY"; // <= put your key
+const CACHE_MINUTES = 30;                                 // cache per query
+const DEFAULT_IMG = "assets/locations/pacific-ocean.jpg"; // local fallback
+// Map country -> flag asset (add more as needed)
+const FLAGS = {
+  "mongolia":"assets/flags/mn.svg","vietnam":"assets/flags/vn.svg",
+  "united states":"assets/flags/us.svg","thailand":"assets/flags/th.svg",
+  "russian federation":"assets/flags/ru.svg"
+};
+/* ---------------------------- */
+
+const el = {
+  flagBox:document.getElementById('flagBox'), oceanDot:document.getElementById('oceanDot'),
+  placeName:document.getElementById('placeName'), thumb:document.getElementById('thumbImg'),
+  credit:document.getElementById('credit'), live:document.getElementById('liveBadge'),
+  nowText:document.getElementById('nowText'), date:document.getElementById('date'),
+  time:document.getElementById('time'), speed:document.getElementById('speed'),
+  elev:document.getElementById('elev'), coords:document.getElementById('coords'),
+};
+const norm = s => (s||"").toLowerCase().trim();
+
+/* ---------- Replace this with your real ISS data ---------- */
+async function fetchISSData(){
+  return {
+    country: null,                 // "Mongolia" or null if over water
+    waterbody: "Pacific Ocean",    // e.g. "Pacific Ocean"
+    utc: new Date(),
+    speed_kms: 7.6654,
+    elev_km: 420.2,
+    lat: 10.99, lon: -98.56,
+    sun_state: "sunset",           // "day"|"night"|"sunset"|"sunrise"
+    online: true
+  };
+}
+/* --------------------------------------------------------- */
+
+/* ---------- Unsplash search with caching ---------- */
+function cacheKey(q){ return "unsplash:"+q; }
+function cacheGet(q){
+  const raw = localStorage.getItem(cacheKey(q));
+  if(!raw) return null;
+  try{
+    const o = JSON.parse(raw);
+    if(Date.now()-o.t > CACHE_MINUTES*60*1000) return null;
+    return o.v;
+  }catch{ return null; }
+}
+function cacheSet(q,v){
+  try{ localStorage.setItem(cacheKey(q), JSON.stringify({t:Date.now(), v})); }catch{}
+}
+async function unsplashPhoto(query){
+  const q = query + " landscape";
+  const cached = cacheGet(q);
+  if(cached) return cached; // {url, credit}
+
+  const u = new URL("https://api.unsplash.com/search/photos");
+  u.searchParams.set("query", q);
+  u.searchParams.set("orientation","landscape");
+  u.searchParams.set("content_filter","high");
+  u.searchParams.set("per_page","1");
+  u.searchParams.set("client_id", UNSPLASH_ACCESS_KEY);
+
+  const r = await fetch(u, {cache:"no-store"});
+  if(!r.ok) throw new Error("Unsplash " + r.status);
+  const j = await r.json();
+  if(!j.results || !j.results.length) throw new Error("No results");
+  const p = j.results[0];
+  // size exactly for our thumb (128x96) via fit params
+  const url = p.urls.raw + "&w=256&h=192&fit=crop&auto=format";
+  const credit = `Photo: ${p.user.name} / Unsplash`;
+  const res = {url, credit};
+  cacheSet(q,res);
+  return res;
+}
+
+/* ---------- Render ---------- */
+function pickPlace(d){ return d.country || d.waterbody || "Pacific Ocean"; }
+function formatDateTime(dt){
+  const optsDate = {month:"short", day:"2-digit", year:"numeric"};
+  const optsTime = {hour:"2-digit", minute:"2-digit", second:"2-digit", hour12:false, timeZone:"UTC"};
+  return {
+    date: dt.toLocaleDateString("en-US", optsDate),
+    time: dt.toLocaleTimeString("en-GB", optsTime) + " UTC"
+  };
+}
+function setFlag(place, isOcean){
+  el.flagBox.innerHTML = "";
+  el.oceanDot.hidden = !isOcean;
+  if(isOcean){
+    el.flagBox.appendChild(el.oceanDot);
+  }else{
+    const src = FLAGS[norm(place)];
+    if(src){
+      const img = new Image(); img.src = src; img.alt = place + " flag";
+      el.flagBox.appendChild(img);
+    }else{
+      // fallback color block
+      el.flagBox.style.background = "#2a3440";
+      el.flagBox.style.border = "1px solid #45515c";
     }
-    const fmt = {
-      kmps: (kmh) => (kmh/3600).toFixed(4) + " km/s",
-      km: (num) => num.toFixed(1) + " km",
-      deg: (lat, lon) => {
-        const ns = lat >= 0 ? "N" : "S";
-        const ew = lon >= 0 ? "E" : "W";
-        return `${Math.abs(lat).toFixed(2)} °${ns}, ${Math.abs(lon).toFixed(2)} °${ew}`;
-      },
-      utc: (date) => date.toISOString().replace('T', ' ').replace(/\\.\d+Z$/, ' UTC')
-    };
-    async function fetchJSON(url) {
-      const res = await fetch(url, { cache: "no-store" });
-      if (!res.ok) throw new Error("HTTP " + res.status + " for " + url);
-      return res.json();
-    }
-    async function getISS() {
-      const data = await fetchJSON("https://api.wheretheiss.at/v1/satellites/25544");
-      return { lat: data.latitude, lon: data.longitude, alt_km: data.altitude, vel_kmh: data.velocity, visibility: data.visibility };
-    }
-    async function getPlace(lat, lon) {
-      try {
-        const bdc = await fetchJSON(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`);
-        let label = null;
-        if (bdc.localityInfo && bdc.localityInfo.informative) {
-          const sea = bdc.localityInfo.informative.find(x => /Ocean|Sea|Gulf|Bay|Channel|Strait|Bight|Sound|Lake/i.test(x.name));
-          if (sea) label = sea.name;
-        }
-        let country = bdc.countryName || "";
-        let iso2 = bdc.countryCode || "";
-        if (!label) { label = country ? country : "International Waters"; }
-        return { label, country, iso2 };
-      } catch (e) {
-        if (CONFIG.geonamesUsername) {
-          try {
-            const g = await fetchJSON(`https://secure.geonames.org/oceanJSON?lat=${lat}&lng=${lon}&username=${CONFIG.geonamesUsername}`);
-            if (g && g.ocean && g.ocean.name) return { label: g.ocean.name, country: "", iso2: "" };
-          } catch (_) {}
-        }
-        try {
-          const mr = await fetchJSON(`https://www.marineregions.org/rest/getGazetteerRecordsByLatLon.json/${lat}/${lon}/`);
-          const water = Array.isArray(mr) ? mr.find(x => /Ocean|Sea|Gulf|Bay|Channel|Strait|Bight|Sound|Lake/i.test(x.preferredGazetteerName || "")) : null;
-          if (water) return { label: water.preferredGazetteerName, country: "", iso2: "" };
-        } catch (_) {}
-        return { label: "Earth", country: "", iso2: "" };
-      }
-    }
-    async function getSunTimes(lat, lon) {
-      const j = await fetchJSON(`https://api.sunrise-sunset.org/json?lat=${lat}&lng=${lon}&formatted=0`);
-      return j.status === "OK" ? j.results : null;
-    }
-    function currentPhase(sun) {
-      if (!sun) return "—";
-      const now = new Date();
-      const rise = new Date(sun.sunrise);
-      const set  = new Date(sun.sunset);
-      const diffMin = (a,b) => Math.abs((a-b)/60000);
-      if (diffMin(now, rise) <= 8) return "Sunrise";
-      if (diffMin(now, set ) <= 8) return "Sunset";
-      return (now >= rise && now <= set) ? "Daylight" : "Night";
-    }
-    async function getLiveBadgeState() {
-      if (!CONFIG.showLiveBadge) return { label: "", cls: "" };
-      if (CONFIG.liveBadgeMode === "youtube" && CONFIG.youtubeApiKey && CONFIG.youtubeVideoId) {
-        try {
-          const url = `https://www.googleapis.com/youtube/v3/videos?id=${CONFIG.youtubeVideoId}&part=snippet,liveStreamingDetails,status&key=${CONFIG.youtubeApiKey}`;
-          const j = await fetchJSON(url);
-          const item = j.items && j.items[0];
-          const life = item && item.liveStreamingDetails;
-          const status = item && item.snippet && item.snippet.liveBroadcastContent;
-          const isLive = status === "live" || (life && life.actualStartTime && !life.actualEndTime);
-          return isLive ? { label: "LIVE NOW", cls: "badge" } : { label: "OFFLINE", cls: "badge offline" };
-        } catch (e) {}
-      }
-      return { label: "LIVE NOW", cls: "badge" };
-    }
-    async function update() {
-      try {
-        const iss = await getISS();
-        const place = await getPlace(iss.lat, iss.lon);
-        const sun = await getSunTimes(iss.lat, iss.lon);
-        const phase = currentPhase(sun);
-        const titleEl = document.getElementById("placeLabel");
-        const flagEl = document.getElementById("flag");
-        titleEl.textContent = place.label;
-        if (place.iso2) {
-          flagEl.src = `${CONFIG.flagCdnBase}/48x36/${place.iso2.toLowerCase()}.png`;
-          flagEl.style.display = "block";
-          flagEl.title = place.country;
-          flagEl.alt = place.country ? `${place.country} flag` : "Flag";
-        } else {
-          flagEl.style.display = "none";
-        }
-        document.getElementById("phase").textContent = `Now: ${phase}`;
-        document.getElementById("utc").textContent = new Date().toISOString().slice(0, 19).replace('T',' ') + " UTC";
-        document.getElementById("speed").textContent = (iss.vel_kmh/3600).toFixed(4) + " km/s";
-        document.getElementById("elev").textContent  = "Elev: " + iss.alt_km.toFixed(1) + " km";
-        document.getElementById("coords").textContent = (Math.abs(iss.lat).toFixed(2)) + " °" + (iss.lat>=0?"N":"S") + ", " + (Math.abs(iss.lon).toFixed(2)) + " °" + (iss.lon>=0?"E":"W");
-        const badge = await getLiveBadgeState();
-        const badgeEl = document.getElementById("liveBadge");
-        if (!CONFIG.showLiveBadge) {
-          badgeEl.style.display = "none";
-        } else {
-          badgeEl.textContent = badge.label;
-          badgeEl.className = badge.cls;
-          badgeEl.style.display = "inline-block";
-        }
-      } catch (e) { console.error(e); }
-    }
-    update();
-    setInterval(update, CONFIG.pollMs);
-  </script>
+  }
+}
+
+async function render(){
+  const d = await fetchISSData();
+  const place = pickPlace(d);
+  const isOcean = !d.country;
+
+  // Title
+  el.placeName.textContent = place;
+  setFlag(place, isOcean);
+
+  // Metrics
+  const dt = formatDateTime(d.utc instanceof Date ? d.utc : new Date(d.utc));
+  el.date.textContent = dt.date;
+  el.time.textContent = dt.time;
+  el.speed.textContent = `${d.speed_kms.toFixed(4)} km/s`;
+  el.elev.textContent  = `Elev: ${d.elev_km.toFixed(1)} km`;
+  const lat = `${Math.abs(d.lat).toFixed(2)} °${d.lat>=0?"N":"S"}`;
+  const lon = `${Math.abs(d.lon).toFixed(2)} °${d.lon>=0?"E":"W"}`;
+  el.coords.textContent = `${lat}, ${lon}`;
+  el.live.style.display = d.online ? "inline-block" : "none";
+  el.nowText.textContent = `Now: ${d.sun_state[0].toUpperCase()+d.sun_state.slice(1)} (1 of 16)`;
+
+  // Image
+  try{
+    const {url, credit} = await unsplashPhoto(place);
+    el.thumb.src = url;
+    el.credit.textContent = credit;
+    el.credit.hidden = false; // Unsplash asks for credit where possible
+  }catch(e){
+    el.thumb.src = DEFAULT_IMG;
+    el.credit.hidden = true;
+  }
+}
+
+render();
+setInterval(render, 30000); // refresh every 30s
+</script>
 </body>
 </html>
