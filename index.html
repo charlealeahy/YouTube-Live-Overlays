@@ -41,3 +41,217 @@ body{display:grid;place-items:start;background:#0a0f15;padding:12px}
 }
 
 /* Thumbnail with centered LIVE badge *under* the photo */
+.thumb{width:128px; height:96px; border-radius:6px; overflow:hidden; background:#4f5c64; border:1px solid #9aa6b1; position:relative}
+.thumb img{width:100%; height:100%; object-fit:cover; display:block; opacity:0; transition:opacity .25s ease}
+.thumb img.loaded{opacity:1}
+.live{
+  position:absolute; left:50%; transform:translateX(-50%); bottom:-26px;
+  background:var(--live); color:#fff; font-weight:800; font-size:14px; padding:5px 10px;
+  border-radius:6px; box-shadow:0 2px 8px #0007
+}
+.credit{position:absolute; right:6px; bottom:4px; font-size:10px; color:#c9d6e4; background:#0009; padding:2px 6px; border-radius:4px}
+
+/* Data panel (tight like the screenshot) */
+.panel{background:var(--panel); border:1px solid var(--stroke); border-radius:6px; padding:10px 12px; display:grid; gap:4px}
+.now{font-weight:800; font-size:18px; color:#cfd8df; margin-bottom:2px}
+.line{display:flex; justify-content:space-between; align-items:center; color:var(--muted); font-size:16px}
+.line b{color:var(--text); font-weight:600}
+.sp{width:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <!-- Title -->
+  <div class="title">
+    <div class="flag" id="flagBox"><div class="ocean-dot" id="oceanDot" hidden></div></div>
+    <div class="name" id="placeName">—</div>
+  </div>
+
+  <!-- Bottom -->
+  <div class="row">
+    <div class="thumb">
+      <img id="thumbImg" alt="Location image"/>
+      <div class="credit" id="credit" hidden></div>
+      <div class="live" id="liveBadge">LIVE NOW</div>
+    </div>
+    <div class="sp"></div>
+    <div class="panel">
+      <div class="now" id="nowText">Now: —</div>
+      <div class="line"><span id="date">—</span><b id="time">— UTC</b></div>
+      <div class="line"><span id="speed">— km/s</span><b id="elev">Elev: — km</b></div>
+      <div class="line"><span id="coords">—</span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===== CONFIG ===== */
+const UNSPLASH_ACCESS_KEY = "b-noVjyVf5IBRDh5VaZP6HR0apDT8IwonBdoF_TBZk4";   // your key
+const DEFAULT_IMG = "assets/locations/pacific-ocean.jpg";
+const STATS_MS = 1000;     // update stats every 1s
+const GEO_MS   = 10000;    // reverse geocode at most every 10s (or if moved far)
+
+/* Fallback ISO2 codes by common names (used only if API omits code) */
+const ISO2_FALLBACK = {
+  "united states":"us","united kingdom":"gb","russian federation":"ru","russia":"ru","thailand":"th",
+  "vietnam":"vn","china":"cn","india":"in","japan":"jp","france":"fr","germany":"de","italy":"it",
+  "spain":"es","canada":"ca","australia":"au","mexico":"mx","brazil":"br","south africa":"za",
+  "saudi arabia":"sa","turkey":"tr","indonesia":"id","philippines":"ph","malaysia":"my",
+  "mongolia":"mn","iran":"ir","iraq":"iq","egypt":"eg"
+};
+
+const el = {
+  flagBox:document.getElementById('flagBox'),
+  oceanDot:document.getElementById('oceanDot'),
+  placeName:document.getElementById('placeName'),
+  thumb:document.getElementById('thumbImg'),
+  credit:document.getElementById('credit'),
+  live:document.getElementById('liveBadge'),
+  nowText:document.getElementById('nowText'),
+  date:document.getElementById('date'),
+  time:document.getElementById('time'),
+  speed:document.getElementById('speed'),
+  elev:document.getElementById('elev'),
+  coords:document.getElementById('coords'),
+};
+const norm=s=>(s||"").toLowerCase().trim();
+
+/* ---------- ISS position ---------- */
+async function getISS(){
+  const u = new URL("https://api.wheretheiss.at/v1/satellites/25544");
+  u.searchParams.set("_", Date.now()); // bust cache
+  const r = await fetch(u, {cache:"no-store"});
+  if(!r.ok) throw new Error("ISS API "+r.status);
+  const j = await r.json();
+  return {
+    lat: j.latitude,
+    lon: j.longitude,
+    speed_kms: j.velocity/3600,   // wheretheiss = km/h -> km/s
+    elev_km: j.altitude,          // km
+    utc: new Date(j.timestamp*1000)
+  };
+}
+
+/* ---------- Country / Ocean (BigDataCloud only) ---------- */
+function pickOceanFromLocalityInfo(info){
+  if(!info || !Array.isArray(info.informative)) return null;
+  const hit = info.informative.find(x => /ocean|sea|gulf|bay|channel|strait/i.test(x.description||x.name||"") ||
+                                         /ocean|sea/i.test(x.name||""));
+  return hit ? hit.name : null;
+}
+async function getPlace(lat, lon){
+  const u1=new URL("https://api.bigdatacloud.net/data/reverse-geocode-client");
+  u1.searchParams.set("latitude", lat);
+  u1.searchParams.set("longitude", lon);
+  u1.searchParams.set("localityLanguage","en");
+  const r1=await fetch(u1,{cache:"no-store"});
+  if(r1.ok){
+    const j=await r1.json();
+    const ocean = pickOceanFromLocalityInfo(j.localityInfo);
+    if(ocean) return {label:ocean, isOcean:true, code:null};
+    if(j.countryName) return {label:j.countryName, isOcean:false, code:(j.countryCode||"").toLowerCase()};
+  }
+  // final fallback
+  return {label:"Earth", isOcean:false, code:null};
+}
+
+/* ---------- Sun state ---------- */
+function sunState(lat,lon,date){
+  const t=SunCalc.getTimes(date,lat,lon), n=date.getTime();
+  if(n>=t.sunrise.getTime() && n<=t.sunriseEnd.getTime()) return "Sunrise";
+  if(n>=t.sunsetStart.getTime() && n<=t.sunset.getTime()) return "Sunset";
+  if(n>t.sunriseEnd.getTime() && n<t.sunsetStart.getTime()) return "Daylight";
+  return "Night";
+}
+
+/* ---------- Unsplash (only when place changes) ---------- */
+function ck(q){return "unsplash:"+q;}
+function cget(q){try{const r=localStorage.getItem(ck(q)); if(!r) return null; const o=JSON.parse(r); if(Date.now()-o.t>30*60*1000) return null; return o.v;}catch{return null}}
+function cset(q,v){try{localStorage.setItem(ck(q),JSON.stringify({t:Date.now(),v}))}catch{}}
+async function fetchUnsplash(query,isOcean){
+  const q = isOcean ? `${query} ocean seascape horizon` : `${query} city skyline landscape`;
+  const cached=cget(q); if(cached) return cached;
+  const url=new URL("https://api.unsplash.com/search/photos");
+  url.searchParams.set("query",q);
+  url.searchParams.set("orientation","landscape");
+  url.searchParams.set("content_filter","high");
+  url.searchParams.set("per_page","1");
+  url.searchParams.set("client_id","b-noVjyVf5IBRDh5VaZP6HR0apDT8IwonBdoF_TBZk4");
+  const res=await fetch(url,{cache:"no-store"});
+  if(!res.ok) throw new Error("Unsplash "+res.status);
+  const j=await res.json();
+  if(!j.results?.length) throw new Error("No results");
+  const p=j.results[0];
+  const photoUrl=p.urls.raw+"&w=256&h=192&fit=crop&auto=format";
+  const credit=`${p.user.name} / Unsplash`;
+  const out={url:photoUrl,credit};
+  cset(q,out); return out;
+}
+
+/* ---------- UI helpers ---------- */
+function setFlag(place,isOcean,code){
+  el.flagBox.innerHTML="";
+  if(isOcean){
+    el.oceanDot.hidden=false; el.flagBox.appendChild(el.oceanDot);
+  }else{
+    el.oceanDot.hidden=true;
+    let cc = (code||"").toLowerCase();
+    if(!cc) cc = ISO2_FALLBACK[norm(place)] || "";
+    if(cc){
+      const img=new Image();
+      img.src=`https://flagcdn.com/w40/${cc}.png`; // tiny, crisp, CORS-safe
+      img.alt=place+" flag";
+      el.flagBox.appendChild(img);
+    }
+  }
+}
+function dtParts(d){
+  const date=d.toLocaleDateString("en-US",{month:"short",day:"2-digit",year:"numeric"});
+  const time=d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false,timeZone:"UTC"})+" UTC";
+  return {date,time};
+}
+
+/* ---------- Loop: stats 1s; geocode throttled ---------- */
+let lastPlaceLabel="", lastGeo = {t:0, lat:0, lon:0};
+async function tick(){
+  try{
+    const iss = await getISS();
+
+    // 1) Fast stats every second
+    const {date,time}=dtParts(iss.utc);
+    el.date.textContent=date; el.time.textContent=time;
+    el.speed.textContent=`${iss.speed_kms.toFixed(4)} km/s`;
+    el.elev.textContent =`Elev: ${iss.elev_km.toFixed(1)} km`;
+    el.coords.textContent=`${Math.abs(iss.lat).toFixed(2)} °${iss.lat>=0?"N":"S"}, ${Math.abs(iss.lon).toFixed(2)} °${iss.lon>=0?"E":"W"}`;
+    el.live.style.display="inline-block";
+    el.nowText.textContent=`Now: ${sunState(iss.lat, iss.lon, iss.utc)} (1 of 16)`;
+
+    // 2) Reverse geocode every GEO_MS or if moved noticeably
+    const movedFar = Math.abs(iss.lat-lastGeo.lat)+Math.abs(iss.lon-lastGeo.lon) > 0.75; // ~80–100 km
+    const timeUp = (Date.now()-lastGeo.t) > GEO_MS;
+    if(movedFar || timeUp || !lastPlaceLabel){
+      const place = await getPlace(iss.lat, iss.lon);
+      lastGeo = {t:Date.now(), lat:iss.lat, lon:iss.lon};
+
+      el.placeName.textContent = place.label;
+      setFlag(place.label, place.isOcean, place.code);
+
+      if(norm(place.label)!==norm(lastPlaceLabel)){
+        lastPlaceLabel = place.label;
+        try{
+          const {url,credit}=await fetchUnsplash(place.label, place.isOcean);
+          const img=new Image();
+          img.onload=()=>{ el.thumb.src=url; el.thumb.classList.add("loaded"); el.credit.textContent=credit; el.credit.hidden=false; };
+          img.src=url;
+        }catch{
+          el.thumb.src = DEFAULT_IMG; el.credit.hidden=true;
+        }
+      }
+    }
+  }catch(e){ console.error(e); }
+}
+tick();
+setInterval(tick, STATS_MS);
+</script>
+</body>
+</html>
