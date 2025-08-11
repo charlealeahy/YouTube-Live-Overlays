@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
+<script src="https://unpkg.com/suncalc@1.9.0/suncalc.js"></script>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=440, initial-scale=1" />
 <title>ISS Overlay 440×240</title>
@@ -58,7 +59,7 @@ font-weight:800;font-size:14px;padding:5px 10px;border-radius:6px;box-shadow:0 2
 
 <script>
 /* ===== CONFIG ===== */
-const UNSPLASH_ACCESS_KEY = "YOUR_UNSPLASH_ACCESS_KEY"; // put your key
+const UNSPLASH_ACCESS_KEY = "YOUR_UNSPLASH_ACCESS_KEY";     // <— put your key
 const CACHE_MIN = 30;
 const DEFAULT_IMG = "assets/locations/pacific-ocean.jpg";
 const FLAGS = {
@@ -66,8 +67,6 @@ const FLAGS = {
   "united states":"assets/flags/us.svg","thailand":"assets/flags/th.svg",
   "russian federation":"assets/flags/ru.svg"
 };
-/* If you want full transparency for OBS, remove the body backdrop:
-   body{background:transparent} and embed this page as a Browser Source. */
 
 const el = {
   flagBox:document.getElementById('flagBox'),
@@ -83,46 +82,80 @@ const el = {
   elev:document.getElementById('elev'),
   coords:document.getElementById('coords'),
 };
+const norm = s => (s||"").toLowerCase().trim();
 
-const norm=s=>(s||"").toLowerCase().trim();
-
-/* ---- Replace with your real ISS feed ---- */
-async function fetchISSData(){
+/* ---------- LIVE DATA ---------- */
+// 1) ISS position, velocity, altitude (CORS-enabled)
+async function getISS(){
+  const u = new URL("https://api.wheretheiss.at/v1/satellites/25544");
+  u.searchParams.set("_", Date.now()); // bust caches
+  const r = await fetch(u, {cache:"no-store"});
+  if(!r.ok) throw new Error("ISS API "+r.status);
+  const j = await r.json();
   return {
-    country: null,                 // e.g. "Mongolia" or null if over water
-    waterbody: "Pacific Ocean",    // e.g. "Pacific Ocean"
-    utc: new Date(),
-    speed_kms: 7.6654,
-    elev_km: 420.2,
-    lat: 10.99, lon: -98.56,
-    sun_state: "sunset",
-    online: true
+    lat: j.latitude,
+    lon: j.longitude,
+    speed_kms: j.velocity/1000,         // m/s → km/s (api returns m/s? wheretheiss returns km/h? If so: j.velocity/3600)
+    elev_km: j.altitude,                // already km
+    utc: new Date(j.timestamp*1000)
   };
 }
-/* ---------------------------------------- */
+// If wheretheiss velocity is km/h, use: speed_kms: j.velocity/3600
 
-function setFlag(place, isOcean){
-  el.flagBox.innerHTML="";
-  if(isOcean){
-    el.oceanDot.hidden=false;
-    el.flagBox.appendChild(el.oceanDot);
-  }else{
-    el.oceanDot.hidden=true;
-    const src=FLAGS[norm(place)];
-    if(src){const img=new Image(); img.src=src; img.alt=place+" flag"; el.flagBox.appendChild(img);}
-  }
-}
-function dtParts(d){
-  const date=d.toLocaleDateString("en-US",{month:"short",day:"2-digit",year:"numeric"});
-  const time=d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false,timeZone:"UTC"})+" UTC";
-  return {date,time};
+// 2) Reverse geocode to Country or Ocean
+async function getPlace(lat, lon){
+  // Try BigDataCloud (fast, free)
+  try{
+    const u1 = new URL("https://api.bigdatacloud.net/data/reverse-geocode-client");
+    u1.searchParams.set("latitude", lat);
+    u1.searchParams.set("longitude", lon);
+    u1.searchParams.set("localityLanguage","en");
+    const r1 = await fetch(u1, {cache:"no-store"});
+    if(r1.ok){
+      const j = await r1.json();
+      if(j.countryName) return {label: j.countryName, isOcean:false};
+    }
+  }catch{}
+
+  // Fallback to Nominatim — often returns ocean/sea names
+  try{
+    const u2 = new URL("https://nominatim.openstreetmap.org/reverse");
+    u2.searchParams.set("format","jsonv2");
+    u2.searchParams.set("zoom","3");
+    u2.searchParams.set("lat", lat);
+    u2.searchParams.set("lon", lon);
+    u2.searchParams.set("accept-language","en");
+    const r2 = await fetch(u2, {cache:"no-store", headers:{'User-Agent':'ISS-Overlay Demo'}});
+    if(r2.ok){
+      const j2 = await r2.json();
+      const name = j2?.name || j2?.address?.country || "Earth";
+      const isOcean = /ocean|sea|gulf|bay|channel|strait/i.test(name) && !j2?.address?.country;
+      return {label: name, isOcean};
+    }
+  }catch{}
+
+  return {label:"Earth", isOcean:false};
 }
 
-/* ---- Unsplash with caching + clear errors ---- */
+// 3) Day/Night/Sunrise/Sunset using SunCalc
+function sunState(lat, lon, date){
+  const times = SunCalc.getTimes(date, lat, lon);
+  const now = date.getTime();
+  const sunrise = times.sunrise.getTime();
+  const sunset  = times.sunset.getTime();
+  const dawn    = times.sunriseEnd.getTime();
+  const dusk    = times.sunsetStart.getTime();
+
+  if (now >= sunrise && now <= dawn)   return "sunrise";
+  if (now >= dusk && now <= sunset)    return "sunset";
+  if (now > dawn && now < dusk)        return "day";
+  return "night";
+}
+
+/* ---------- Unsplash with caching ---------- */
 function ck(q){return "unsplash:"+q;}
 function cget(q){try{const r=localStorage.getItem(ck(q)); if(!r) return null; const o=JSON.parse(r); if(Date.now()-o.t> CACHE_MIN*60*1000) return null; return o.v;}catch{return null}}
 function cset(q,v){try{localStorage.setItem(ck(q),JSON.stringify({t:Date.now(),v}))}catch{}}
-
 async function fetchUnsplash(query){
   if(!UNSPLASH_ACCESS_KEY || UNSPLASH_ACCESS_KEY==="YOUR_UNSPLASH_ACCESS_KEY") throw new Error("Unsplash key missing");
   const q=query+" landscape";
@@ -145,38 +178,56 @@ async function fetchUnsplash(query){
   return out;
 }
 
+/* ---------- UI helpers ---------- */
+function setFlag(place, isOcean){
+  el.flagBox.innerHTML="";
+  if(isOcean){
+    el.oceanDot.hidden=false; el.flagBox.appendChild(el.oceanDot);
+  }else{
+    el.oceanDot.hidden=true;
+    const src=FLAGS[norm(place)];
+    if(src){const img=new Image(); img.src=src; img.alt=place+" flag"; el.flagBox.appendChild(img);}
+  }
+}
+function dtParts(d){
+  const date=d.toLocaleDateString("en-US",{month:"short",day:"2-digit",year:"numeric"});
+  const time=d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false,timeZone:"UTC"})+" UTC";
+  return {date,time};
+}
+
+/* ---------- RENDER LOOP ---------- */
 async function render(){
   try{
-    const d=await fetchISSData();
-    const place=d.country || d.waterbody || "Earth";
-    const isOcean=!d.country;
+    const iss = await getISS();
+    const place = await getPlace(iss.lat, iss.lon);
+    const state = sunState(iss.lat, iss.lon, iss.utc);
 
-    el.placeName.textContent=place;
-    setFlag(place,isOcean);
+    el.placeName.textContent = place.label;
+    setFlag(place.label, place.isOcean);
 
-    const {date,time}=dtParts(d.utc instanceof Date?d.utc:new Date(d.utc));
-    el.date.textContent=date; el.time.textContent=time;
-    el.speed.textContent=`${d.speed_kms.toFixed(4)} km/s`;
-    el.elev.textContent =`Elev: ${d.elev_km.toFixed(1)} km`;
-    el.coords.textContent=`${Math.abs(d.lat).toFixed(2)} °${d.lat>=0?"N":"S"}, ${Math.abs(d.lon).toFixed(2)} °${d.lon>=0?"E":"W"}`;
-    el.live.style.display=d.online?"inline-block":"none";
-    el.nowText.textContent=`Now: ${d.sun_state[0].toUpperCase()+d.sun_state.slice(1)} (1 of 16)`;
+    const {date,time} = dtParts(iss.utc);
+    el.date.textContent = date;
+    el.time.textContent = time;
+    el.speed.textContent = `${iss.speed_kms.toFixed(4)} km/s`;
+    el.elev.textContent  = `Elev: ${iss.elev_km.toFixed(1)} km`;
+    el.coords.textContent = `${Math.abs(iss.lat).toFixed(2)} °${iss.lat>=0?"N":"S"}, ${Math.abs(iss.lon).toFixed(2)} °${iss.lon>=0?"E":"W"}`;
+    el.live.style.display = "inline-block"; // wire to your stream health when ready
+    el.nowText.textContent = `Now: ${state[0].toUpperCase()+state.slice(1)} (1 of 16)`;
 
-    // Dynamic image
     try{
-      const {url,credit}=await fetchUnsplash(place);
-      el.thumb.src=url; el.credit.textContent=credit; el.credit.hidden=false;
-    }catch(imgErr){
-      console.warn(imgErr.message);
-      el.thumb.src=DEFAULT_IMG; el.credit.hidden=true;
+      const {url,credit} = await fetchUnsplash(place.label);
+      el.thumb.src = url; el.credit.textContent = credit; el.credit.hidden = false;
+    }catch{
+      el.thumb.src = DEFAULT_IMG; el.credit.hidden = true;
     }
   }catch(e){
-    console.error("Render error:",e);
+    console.error(e);
   }
 }
 
+// initial + interval
 render();
-setInterval(render,30000);
+setInterval(render, 15000); // update every 15s
 </script>
 </body>
 </html>
