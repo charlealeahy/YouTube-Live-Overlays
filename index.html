@@ -13,36 +13,54 @@
 <link rel="preconnect" href="https://restcountries.com">
 <script src="https://unpkg.com/suncalc@1.9.0/suncalc.js"></script>
 <style>
-:root{--card:#0c1116;--top:#0f141a;--panel:#1a2128;--stroke:#30373e;--text:#e8eef4;--muted:#a8b3be;--hdr:#4b535b;--live:#b11313}
+:root{
+  --card:#0c1116; --top:#0f141a; --panel:#1a2128; --stroke:#30373e;
+  --text:#e8eef4; --muted:#a8b3be; --hdr:#4b535b; --live:#b11313;
+}
 *{box-sizing:border-box;font-family:Segoe UI,Roboto,Arial,sans-serif}
 html,body{margin:0;background:#0a0f15}
 body{padding:12px}
+
 /* CARD */
 .card{width:440px;height:240px;color:var(--text);border:1px solid #263039;border-radius:10px;background:var(--card);overflow:hidden}
-/* TOP TITLE like example */
-.top{height:112px;background:var(--top);display:flex;align-items:center;justify-content:center;position:relative;border-bottom:1px solid #222a31}
-.place{font-weight:600;font-size:44px;letter-spacing:.2px;max-width:90%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center}
-.flagWrap{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:176px;height:96px;border-radius:6px;border:1px solid #8ea0ae;overflow:hidden;background:#2a3440;display:flex;align-items:center;justify-content:center}
-.flagWrap img{width:100%;height:100%;object-fit:cover;display:block}
-.oceanDot{width:18px;height:18px;border-radius:50%;background:#62b0ff;box-shadow:0 0 0 4px #14334d inset}
+
+/* TOP — big centered title only */
+.top{
+  height:112px;background:var(--top);
+  display:flex;align-items:center;justify-content:center;
+  border-bottom:1px solid #222a31;position:relative
+}
+.place{
+  font-weight:600;font-size:44px;letter-spacing:.2px;
+  max-width:92%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;z-index:2
+}
+/* we no longer use a top flag */
+.flagWrap{display:none !important}
+
 /* BOTTOM ROW */
 .row{height:128px;display:grid;grid-template-columns:176px 12px 1fr;padding:12px}
+
+/* Left block: flag (land) or ocean photo (water) */
 .left{position:relative;width:176px;height:96px;border:1px solid #8ea0ae;border-radius:6px;overflow:hidden;background:#4c5b66}
 .left img{width:100%;height:100%;object-fit:cover;display:block}
-.live{position:absolute;left:50%;transform:translateX(-50%);bottom:-24px;background:var(--live);color:#fff;font-weight:800;font-size:14px;padding:4px 10px;border-radius:6px;box-shadow:0 2px 8px #0007}
-/* RIGHT PANEL */
+.live{
+  position:absolute;left:50%;transform:translateX(-50%);bottom:-24px;
+  background:var(--live);color:#fff;font-weight:800;font-size:14px;
+  padding:4px 10px;border-radius:6px;box-shadow:0 2px 8px #0007
+}
+.credit{position:absolute;right:6px;bottom:4px;font-size:10px;color:#c9d6e4;background:#0009;padding:2px 6px;border-radius:4px}
+
+/* Right panel */
 .panel{background:var(--panel);border:1px solid var(--stroke);border-radius:6px;padding:0 10px 10px 10px;display:grid;grid-template-rows:auto auto auto auto;row-gap:6px}
 .hdr{height:30px;margin:-1px -10px 8px -10px;background:var(--hdr);display:flex;align-items:center;padding:0 10px;border-top-left-radius:6px;border-top-right-radius:6px;font-weight:800;font-size:18px}
 .line{display:flex;justify-content:space-between;font-size:16px;color:var(--muted)}
 .line b{color:var(--text);font-weight:600}
-/* tiny credit */
-.credit{position:absolute;right:6px;bottom:4px;font-size:10px;color:#c9d6e4;background:#0009;padding:2px 6px;border-radius:4px}
 </style>
 </head>
 <body>
 <div class="card">
   <div class="top">
-    <div class="flagWrap" id="bigFlag"><div class="oceanDot" id="oceanDot" hidden></div></div>
+    <div class="flagWrap" id="bigFlag"></div>
     <div class="place" id="place">Loading…</div>
   </div>
 
@@ -66,12 +84,10 @@ body{padding:12px}
 /*** CONFIG ***/
 const UNSPLASH_ACCESS_KEY = "b-noVjyVf5IBRDh5VaZP6HR0apDT8IwonBdoF_TBZk4"; // your key
 const DEFAULT_OCEAN = "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=512&h=384&fit=crop&auto=format";
-const STATS_MS = 1000, GEO_MS = 10000, TOGGLE_MS = 15000; // switch panel every 15s
+const STATS_MS = 1000, GEO_MS = 10000, TOGGLE_MS = 15000; // 1s stats, 10s geocode, 15s toggle
 
 const el = {
   place: document.getElementById('place'),
-  bigFlag: document.getElementById('bigFlag'),
-  oceanDot: document.getElementById('oceanDot'),
   thumb: document.getElementById('thumb'),
   credit: document.getElementById('credit'),
   hdr: document.getElementById('hdr'),
@@ -79,10 +95,9 @@ const el = {
   l2a: document.getElementById('l2a'), l2b: document.getElementById('l2b'),
   l3a: document.getElementById('l3a'), l3b: document.getElementById('l3b'),
 };
-const norm = s => (s||"").toLowerCase().trim();
 const nf0 = new Intl.NumberFormat("en-US");
-const nf1 = new Intl.NumberFormat("en-US",{maximumFractionDigits:1,minimumFractionDigits:1});
 const nf2 = new Intl.NumberFormat("en-US",{maximumFractionDigits:2,minimumFractionDigits:2});
+const norm = s => (s||"").toLowerCase().trim();
 
 /*** HELPERS ***/
 async function getISS(){
@@ -105,41 +120,46 @@ function sunState(lat,lon,date){
   if(n>t.sunriseEnd.getTime() && n<t.sunsetStart.getTime()) return "Daylight";
   return "Night";
 }
-function setBigFlag(code){ // iso-2 lower
-  el.oceanDot.hidden = true;
-  el.bigFlag.innerHTML = "";
-  const img = new Image();
-  img.src = `https://flagcdn.com/w320/${code}.png`;
-  img.alt = "flag";
-  el.bigFlag.appendChild(img);
+
+/*** PLACE (country or ocean) ***/
+function pickOceanFromBDC(info){
+  const arr=info&&Array.isArray(info.informative)?info.informative:[];
+  const hit=arr.find(x=>/ocean|sea|gulf|bay|channel|strait/i.test((x.name||x.description||"")));
+  return hit?hit.name:null;
 }
 async function getPlace(lat, lon){
-  // BigDataCloud (country + ocean via localityInfo)
   try{
     const u=new URL("https://api.bigdatacloud.net/data/reverse-geocode-client");
     u.searchParams.set("latitude",lat); u.searchParams.set("longitude",lon); u.searchParams.set("localityLanguage","en");
-    const r=await fetch(u,{cache:"no-store"}); if(r.ok){
+    const r=await fetch(u,{cache:"no-store"});
+    if(r.ok){
       const j=await r.json();
-      const info=j?.localityInfo?.informative||[];
-      const oceanObj=info.find(x=>/ocean|sea|gulf|bay|channel|strait/i.test((x.name||x.description||"")));
-      if(oceanObj){ return {label:oceanObj.name, isOcean:true, code:null}; }
-      if(j.countryName){ return {label:j.countryName, isOcean:false, code:(j.countryCode||"").toLowerCase()}; }
+      const ocean=pickOceanFromBDC(j.localityInfo);
+      if(ocean) return {label:ocean, isOcean:true, code:null};
+      if(j.countryName) return {label:j.countryName, isOcean:false, code:(j.countryCode||"").toLowerCase()};
     }
-  }catch(e){}
-  // Nominatim fallback
+  }catch{}
   try{
     const u2=new URL("https://nominatim.openstreetmap.org/reverse");
     u2.searchParams.set("format","jsonv2"); u2.searchParams.set("zoom","3");
     u2.searchParams.set("lat",lat); u2.searchParams.set("lon",lon); u2.searchParams.set("accept-language","en");
-    const r2=await fetch(u2,{cache:"no-store",headers:{'User-Agent':'ISS-Overlay'}}); if(r2.ok){
+    const r2=await fetch(u2,{cache:"no-store",headers:{'User-Agent':'ISS-Overlay'}});
+    if(r2.ok){
       const j2=await r2.json();
       const name=j2?.name||j2?.address?.country||"Earth";
       const code=(j2?.address?.country_code||"").toLowerCase();
       const isOcean=/ocean|sea|gulf|bay|channel|strait/i.test(name) && !j2?.address?.country;
       return {label:name,isOcean,code:isOcean?null:code};
     }
-  }catch(e){}
+  }catch{}
   return {label:"Earth", isOcean:false, code:null};
+}
+
+/*** LEFT VISUAL — flag (land) or ocean photo (water) ***/
+function paintThumb(url, credit){
+  const img=new Image();
+  img.onload=()=>{ el.thumb.src=url; el.credit.textContent=credit||""; el.credit.hidden=!credit; };
+  img.src=url;
 }
 async function oceanPhoto(place){
   const u=new URL("https://api.unsplash.com/search/photos");
@@ -148,77 +168,75 @@ async function oceanPhoto(place){
   u.searchParams.set("content_filter","high");
   u.searchParams.set("per_page","1");
   u.searchParams.set("client_id",UNSPLASH_ACCESS_KEY);
-  const r=await fetch(u,{cache:"no-store"}); if(!r.ok) throw new Error("Unsplash "+r.status);
-  const j=await r.json(); if(!j.results?.length) throw new Error("No ocean image");
+  const r=await fetch(u,{cache:"no-store"});
+  if(!r.ok) throw new Error("Unsplash "+r.status);
+  const j=await r.json(); if(!j.results?.length) throw new Error("No results");
   const p=j.results[0];
-  return {url:p.urls.raw + "&w=512&h=384&fit=crop&auto=format", credit:`${p.user.name} / Unsplash`};
+  return {url: p.urls.raw + "&w=512&h=384&fit=crop&auto=format", credit: `${p.user.name} / Unsplash`};
 }
-function paintThumb(url, credit){
-  const img=new Image();
-  img.onload=()=>{ el.thumb.src=url; el.credit.textContent=credit||""; el.credit.hidden=!credit; };
-  img.src=url;
+async function setLeftVisual(place, isOcean, code){
+  if(isOcean){
+    try{
+      const {url,credit}=await oceanPhoto(place);
+      paintThumb(url, credit);
+    }catch{
+      paintThumb(DEFAULT_OCEAN, "");
+    }
+  }else{
+    if(code){ paintThumb(`https://flagcdn.com/w320/${code}.png`, ""); }
+    else{ paintThumb(DEFAULT_OCEAN, ""); }
+  }
 }
 
-/*** COUNTRY INFO (population, growth %, migration rate/1k) ***/
-const countryCache = new Map(); // iso2 -> {population, growth, migRatePer1k}
+/*** COUNTRY INFO ***/
+const countryCache = new Map(); // iso2 -> {population, growth, migPer1k}
 async function getCountryInfo(iso2){
   if(!iso2) return null;
-  const key = iso2.toLowerCase();
+  const key=iso2.toLowerCase();
   if(countryCache.has(key)) return countryCache.get(key);
   try{
-    // Population from RestCountries
+    // Population (RestCountries)
     const rc = await (await fetch(`https://restcountries.com/v3.1/alpha/${key}?fields=population,name`)).json();
     const population = Array.isArray(rc) ? rc[0]?.population : rc?.population;
-    // Growth % (annual) from World Bank SP.POP.GROW (grab latest non-null)
+
+    // Growth % (World Bank SP.POP.GROW)
     const wbGrow = await (await fetch(`https://api.worldbank.org/v2/country/${key}/indicator/SP.POP.GROW?format=json&per_page=60`)).json();
     let growth = null;
     if(Array.isArray(wbGrow) && Array.isArray(wbGrow[1])){
       const row = wbGrow[1].find(x => x && x.value != null);
-      if(row) growth = row.value; // percent
+      if(row) growth = row.value;
     }
-    // Net migration (5-year total) SM.POP.NETM -> approx per-year per 1k
+
+    // Net migration (SM.POP.NETM, 5-year total) → approx annual per 1,000 ppl
     const wbMig = await (await fetch(`https://api.worldbank.org/v2/country/${key}/indicator/SM.POP.NETM?format=json&per_page=60`)).json();
     let migPer1k = null;
-    if(Array.isArray(wbMig) && Array.isArray(wbMig[1])){
+    if(Array.isArray(wbMig) && Array.isArray(wbMig[1]) && population){
       const row = wbMig[1].find(x => x && x.value != null);
-      if(row && population){
-        const perYear = row.value / 5; // 5-year interval → approx annual
+      if(row){
+        const perYear = row.value / 5;
         migPer1k = (perYear / population) * 1000;
       }
     }
-    const out = { population, growth, migPer1k };
+    const out = {population, growth, migPer1k};
     countryCache.set(key, out);
     return out;
-  }catch(e){ return null; }
-}
-
-/*** LEFT VISUAL ***/
-async function setLeftVisual(place, isOcean, code){
-  if(isOcean){
-    el.oceanDot.hidden = false; el.bigFlag.innerHTML = "";
-    try{
-      const {url,credit} = await oceanPhoto(place);
-      paintThumb(url, credit);
-    }catch{ paintThumb(DEFAULT_OCEAN, ""); }
-  }else{
-    el.oceanDot.hidden = true; if(code) setBigFlag(code);
-    paintThumb(`https://flagcdn.com/w320/${code}.png`, "");
-  }
+  }catch{ return null; }
 }
 
 /*** MODES ***/
-let panelMode = "status"; // or "info"
-const canShowInfo = state => !state.isOcean; // info only for countries
-let lastToggle = 0;
+let panelMode="status";  // "status" | "info"
+const canShowInfo = s => !s.isOcean;
+let lastToggle=0;
 
 /*** MAIN LOOP ***/
-let lastPlace="", lastGeo={t:0,lat:0,lon:0}, lastState={isOcean:true, code:null, label:"Earth"};
+let lastPlace="", lastGeo={t:0,lat:0,lon:0}, lastState={isOcean:true,code:null,label:"Earth"};
+
 async function tick(){
   const iss = await getISS();
   const {date,time} = dtParts(iss.utc);
   const stateTxt = sunState(iss.lat, iss.lon, iss.utc);
 
-  // Throttle place lookup
+  // Place (throttled)
   const moved = Math.abs(iss.lat-lastGeo.lat)+Math.abs(iss.lon-lastGeo.lon) > 0.75;
   const due   = (Date.now()-lastGeo.t) > GEO_MS;
   if(moved || due || !lastPlace){
@@ -226,11 +244,10 @@ async function tick(){
     lastGeo = {t:Date.now(), lat:iss.lat, lon:iss.lon};
     lastState = p;
     el.place.textContent = p.label;
-    if(norm(p.label)!==norm(lastPlace)){ lastPlace = p.label; setLeftVisual(p.label, p.isOcean, p.code); }
-    else { if(p.isOcean){ el.oceanDot.hidden=false; el.bigFlag.innerHTML=""; } else if(p.code){ setBigFlag(p.code);} }
+    if(norm(p.label)!==norm(lastPlace)){ lastPlace=p.label; setLeftVisual(p.label, p.isOcean, p.code); }
   }
 
-  // Toggle mode every TOGGLE_MS (only if on land & we have stats)
+  // Toggle every TOGGLE_MS (info only on land)
   if(Date.now()-lastToggle > TOGGLE_MS){
     lastToggle = Date.now();
     panelMode = (panelMode === "status" ? (canShowInfo(lastState) ? "info" : "status") : "status");
@@ -238,20 +255,19 @@ async function tick(){
 
   if(panelMode === "status"){
     el.hdr.textContent = `Now: ${stateTxt} (1 of 16)`;
-    el.l1a.textContent = date;            el.l1b.textContent = time;
+    el.l1a.textContent = date; el.l1b.textContent = time;
     el.l2a.textContent = `${iss.speed_kms.toFixed(4)} km/s`; el.l2b.textContent = `Elev: ${iss.elev_km.toFixed(1)} km`;
     el.l3a.textContent = `${Math.abs(iss.lat).toFixed(2)} °${iss.lat>=0?"N":"S"}`;
     el.l3b.textContent = `${Math.abs(iss.lon).toFixed(2)} °${iss.lon>=0?"E":"W"}`;
   }else{
     el.hdr.textContent = `Country Information`;
-    // fetch/calc once per toggle period per country code
     const info = await getCountryInfo(lastState.code);
     const pop  = info?.population ? nf0.format(info.population) : "—";
     const grow = info?.growth != null ? `${nf2.format(info.growth)}%` : "—";
     const mig  = info?.migPer1k != null ? `${nf2.format(info.migPer1k)}/1000 ppl.` : "—";
-    el.l1a.textContent = `Population:`; el.l1b.textContent = pop;
-    el.l2a.textContent = `Growth Rate:`; el.l2b.textContent = grow;
-    el.l3a.textContent = `Migration Rate:`; el.l3b.textContent = mig;
+    el.l1a.textContent = `Population:`;      el.l1b.textContent = pop;
+    el.l2a.textContent = `Growth Rate:`;     el.l2b.textContent = grow;
+    el.l3a.textContent = `Migration Rate:`;  el.l3b.textContent = mig;
   }
 }
 tick();
