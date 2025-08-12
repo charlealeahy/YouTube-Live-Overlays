@@ -15,6 +15,7 @@
 <link rel="preconnect" href="https://api.worldbank.org">
 <link rel="preconnect" href="https://restcountries.com">
 
+<!-- SunCalc for day/night state -->
 <script src="https://unpkg.com/suncalc@1.9.0/suncalc.js"></script>
 
 <style>
@@ -110,10 +111,16 @@ const nf0=new Intl.NumberFormat("en-US");
 const nf2=new Intl.NumberFormat("en-US",{maximumFractionDigits:2,minimumFractionDigits:2});
 const norm=s=>(s||"").toLowerCase().trim();
 
+/*** UTILITIES ***/
 function showError(msg){ el.error.textContent=msg; el.error.style.display='block'; setTimeout(()=>el.error.style.display='none',5000); }
 function withTimeout(url, opts={}, ms=FETCH_TIMEOUT){
   const c = new AbortController(); const t = setTimeout(()=>c.abort(), ms);
   return fetch(url, {...opts, signal:c.signal}).finally(()=>clearTimeout(t));
+}
+function dtParts(d){  // ← this was the missing helper
+  const date=d.toLocaleDateString("en-US",{month:"short",day:"2-digit",year:"numeric"});
+  const time=d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false,timeZone:"UTC"})+" UTC";
+  return {date,time};
 }
 
 /*** ISS (robust: primary + fallback) ***/
