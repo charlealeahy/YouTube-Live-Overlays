@@ -9,272 +9,249 @@
 <link rel="preconnect" href="https://nominatim.openstreetmap.org">
 <link rel="preconnect" href="https://api.unsplash.com">
 <link rel="preconnect" href="https://flagcdn.com">
+<link rel="preconnect" href="https://api.worldbank.org">
+<link rel="preconnect" href="https://restcountries.com">
 <script src="https://unpkg.com/suncalc@1.9.0/suncalc.js"></script>
 <style>
-:root{--bg:#0b0f14;--panel:#1b2229;--panel2:#11161b;--stroke:#3b4248;
---text:#e6eef5;--muted:#9aa7b3;--live:#b11313}
-*{box-sizing:border-box;font-family:"Segoe UI",Roboto,Arial,sans-serif}
-html,body{margin:0;height:100%}
-body{display:grid;place-items:start;background:#0a0f15;padding:12px}
-
-/* ==== CARD (440×240) ==== */
-.wrap{width:440px;height:240px;color:var(--text)}
-/* Title bar like your screenshot: big centered name + small flag left */
-.title{
-  height:84px; position:relative; display:flex; align-items:center; justify-content:center;
-  background:linear-gradient(#161c22,#0d1216); border:1px solid #2c3338; border-bottom:none;
-  border-top-left-radius:10px; border-top-right-radius:10px
-}
-.name{font-weight:600; font-size:36px; letter-spacing:.2px; max-width:90%;
-      white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-.flag{
-  position:absolute; left:14px; top:50%; transform:translateY(-50%);
-  width:44px; height:28px; border-radius:4px; overflow:hidden;
-  display:flex; align-items:center; justify-content:center;
-  background:#2a3440; border:1px solid #45515c
-}
-.flag img{width:100%; height:100%; object-fit:cover; display:block}
-.ocean-dot{width:14px; height:14px; border-radius:50%; background:#62b0ff; box-shadow:0 0 0 3px #14334d inset}
-
-/* Bottom row: photo + info panel */
-.row{
-  height:156px; display:grid; grid-template-columns:128px 12px 1fr;
-  background:var(--panel2); border:1px solid #2c3338; border-top:none;
-  border-bottom-left-radius:10px; border-bottom-right-radius:10px; padding:12px
-}
-.thumb{width:128px; height:96px; border-radius:6px; overflow:hidden; background:#4f5c64; border:1px solid #9aa6b1; position:relative}
-.thumb img{width:100%; height:100%; object-fit:cover; display:block; opacity:0; transition:opacity .25s ease}
-.thumb img.loaded{opacity:1}
-.live{position:absolute; left:50%; transform:translateX(-50%); bottom:-26px;
-  background:var(--live); color:#fff; font-weight:800; font-size:14px; padding:5px 10px;
-  border-radius:6px; box-shadow:0 2px 8px #0007}
-.credit{position:absolute; right:6px; bottom:4px; font-size:10px; color:#c9d6e4; background:#0009; padding:2px 6px; border-radius:4px}
-
-.panel{background:var(--panel); border:1px solid var(--stroke); border-radius:6px; padding:10px 12px; display:grid; gap:6px}
-.now{font-weight:800; font-size:20px; color:#cfd8df}
-.line{display:flex; gap:12px; color:var(--muted); font-size:16px}
-.line b{color:var(--text); font-weight:600}
-.sp{width:12px}
-
-/* small visible error ribbon (so we never get silent blank) */
-#error{position:fixed;left:0;right:0;bottom:0;background:#b11313;color:#fff;font:12px/1.2 monospace;padding:6px 10px;display:none}
+:root{--card:#0c1116;--top:#0f141a;--panel:#1a2128;--stroke:#30373e;--text:#e8eef4;--muted:#a8b3be;--hdr:#4b535b;--live:#b11313}
+*{box-sizing:border-box;font-family:Segoe UI,Roboto,Arial,sans-serif}
+html,body{margin:0;background:#0a0f15}
+body{padding:12px}
+/* CARD */
+.card{width:440px;height:240px;color:var(--text);border:1px solid #263039;border-radius:10px;background:var(--card);overflow:hidden}
+/* TOP TITLE like example */
+.top{height:112px;background:var(--top);display:flex;align-items:center;justify-content:center;position:relative;border-bottom:1px solid #222a31}
+.place{font-weight:600;font-size:44px;letter-spacing:.2px;max-width:90%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center}
+.flagWrap{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:176px;height:96px;border-radius:6px;border:1px solid #8ea0ae;overflow:hidden;background:#2a3440;display:flex;align-items:center;justify-content:center}
+.flagWrap img{width:100%;height:100%;object-fit:cover;display:block}
+.oceanDot{width:18px;height:18px;border-radius:50%;background:#62b0ff;box-shadow:0 0 0 4px #14334d inset}
+/* BOTTOM ROW */
+.row{height:128px;display:grid;grid-template-columns:176px 12px 1fr;padding:12px}
+.left{position:relative;width:176px;height:96px;border:1px solid #8ea0ae;border-radius:6px;overflow:hidden;background:#4c5b66}
+.left img{width:100%;height:100%;object-fit:cover;display:block}
+.live{position:absolute;left:50%;transform:translateX(-50%);bottom:-24px;background:var(--live);color:#fff;font-weight:800;font-size:14px;padding:4px 10px;border-radius:6px;box-shadow:0 2px 8px #0007}
+/* RIGHT PANEL */
+.panel{background:var(--panel);border:1px solid var(--stroke);border-radius:6px;padding:0 10px 10px 10px;display:grid;grid-template-rows:auto auto auto auto;row-gap:6px}
+.hdr{height:30px;margin:-1px -10px 8px -10px;background:var(--hdr);display:flex;align-items:center;padding:0 10px;border-top-left-radius:6px;border-top-right-radius:6px;font-weight:800;font-size:18px}
+.line{display:flex;justify-content:space-between;font-size:16px;color:var(--muted)}
+.line b{color:var(--text);font-weight:600}
+/* tiny credit */
+.credit{position:absolute;right:6px;bottom:4px;font-size:10px;color:#c9d6e4;background:#0009;padding:2px 6px;border-radius:4px}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="title">
-    <div class="flag" id="flagBox"><div class="ocean-dot" id="oceanDot" hidden></div></div>
-    <div class="name" id="placeName">Loading…</div>
+<div class="card">
+  <div class="top">
+    <div class="flagWrap" id="bigFlag"><div class="oceanDot" id="oceanDot" hidden></div></div>
+    <div class="place" id="place">Loading…</div>
   </div>
 
   <div class="row">
-    <div class="thumb">
-      <img id="thumbImg" alt="Location image"/>
+    <div class="left">
+      <img id="thumb" alt="flag or ocean photo">
       <div class="credit" id="credit" hidden></div>
-      <div class="live" id="liveBadge">LIVE NOW</div>
+      <div class="live">LIVE NOW</div>
     </div>
-    <div class="sp"></div>
+    <div></div>
     <div class="panel">
-      <div class="now" id="nowText">Now: —</div>
-      <div class="line"><span id="date">—</span><b id="time">— UTC</b></div>
-      <div class="line"><span id="speed">— km/s</span><b id="elev">Elev: — km</b></div>
-      <div class="line"><span id="coords">—</span></div>
+      <div class="hdr" id="hdr">Now: —</div>
+      <div class="line"><span id="l1a">—</span><b id="l1b">—</b></div>
+      <div class="line"><span id="l2a">—</span><b id="l2b">—</b></div>
+      <div class="line"><span id="l3a">—</span><b id="l3b">—</b></div>
     </div>
   </div>
 </div>
 
-<div id="error"></div>
-
 <script>
-"use strict";
-
-/* ===== CONFIG ===== */
+/*** CONFIG ***/
 const UNSPLASH_ACCESS_KEY = "b-noVjyVf5IBRDh5VaZP6HR0apDT8IwonBdoF_TBZk4"; // your key
-const DEFAULT_IMG = "assets/locations/pacific-ocean.jpg";
-const STATS_MS = 1000;   // update timestamp/speed/alt/coords every 1s
-const GEO_MS   = 10000;  // reverse-geocode at most every 10s (or if moved far)
-
-/* fallback ISO2 map (used only if APIs omit a code) */
-const ISO2_FALLBACK = {
-  "united states":"us","united kingdom":"gb","russian federation":"ru","russia":"ru",
-  "thailand":"th","vietnam":"vn","china":"cn","india":"in","japan":"jp","france":"fr",
-  "germany":"de","italy":"it","spain":"es","canada":"ca","australia":"au","mexico":"mx",
-  "brazil":"br","south africa":"za","saudi arabia":"sa","turkey":"tr","indonesia":"id",
-  "philippines":"ph","malaysia":"my","mongolia":"mn","iran":"ir","iraq":"iq","egypt":"eg"
-};
+const DEFAULT_OCEAN = "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=512&h=384&fit=crop&auto=format";
+const STATS_MS = 1000, GEO_MS = 10000, TOGGLE_MS = 15000; // switch panel every 15s
 
 const el = {
-  flagBox: document.getElementById('flagBox'),
+  place: document.getElementById('place'),
+  bigFlag: document.getElementById('bigFlag'),
   oceanDot: document.getElementById('oceanDot'),
-  placeName: document.getElementById('placeName'),
-  thumb: document.getElementById('thumbImg'),
+  thumb: document.getElementById('thumb'),
   credit: document.getElementById('credit'),
-  live: document.getElementById('liveBadge'),
-  nowText: document.getElementById('nowText'),
-  date: document.getElementById('date'),
-  time: document.getElementById('time'),
-  speed: document.getElementById('speed'),
-  elev: document.getElementById('elev'),
-  coords: document.getElementById('coords'),
-  error: document.getElementById('error')
+  hdr: document.getElementById('hdr'),
+  l1a: document.getElementById('l1a'), l1b: document.getElementById('l1b'),
+  l2a: document.getElementById('l2a'), l2b: document.getElementById('l2b'),
+  l3a: document.getElementById('l3a'), l3b: document.getElementById('l3b'),
 };
 const norm = s => (s||"").toLowerCase().trim();
+const nf0 = new Intl.NumberFormat("en-US");
+const nf1 = new Intl.NumberFormat("en-US",{maximumFractionDigits:1,minimumFractionDigits:1});
+const nf2 = new Intl.NumberFormat("en-US",{maximumFractionDigits:2,minimumFractionDigits:2});
 
-/* ---- helpers ---- */
-function showError(msg){ el.error.textContent = msg; el.error.style.display = 'block'; setTimeout(()=>el.error.style.display='none', 5000); }
-const timeoutFetch = (url, opts={}, ms=8000) => {
-  const ctrl = new AbortController(); const id = setTimeout(()=>ctrl.abort(), ms);
-  return fetch(url, {...opts, signal: ctrl.signal}).finally(()=>clearTimeout(id));
-};
-function dtParts(d){
-  const date = d.toLocaleDateString("en-US",{month:"short",day:"2-digit",year:"numeric"});
-  const time = d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false,timeZone:"UTC"})+" UTC";
-  return {date,time};
-}
-
-/* ---- ISS data ---- */
+/*** HELPERS ***/
 async function getISS(){
   const u = new URL("https://api.wheretheiss.at/v1/satellites/25544");
   u.searchParams.set("_", Date.now());
-  const r = await timeoutFetch(u, {cache:"no-store"});
+  const r = await fetch(u, {cache:"no-store"});
   if(!r.ok) throw new Error("ISS "+r.status);
   const j = await r.json();
-  return {
-    lat: j.latitude,
-    lon: j.longitude,
-    speed_kms: j.velocity/3600, // km/h -> km/s
-    elev_km: j.altitude,
-    utc: new Date(j.timestamp*1000)
-  };
+  return { lat:j.latitude, lon:j.longitude, speed_kms: j.velocity/3600, elev_km: j.altitude, utc: new Date(j.timestamp*1000) };
 }
-
-/* ---- Place name: country OR ocean ---- */
-function pickOceanFromBDC(info){
-  const arr = info && Array.isArray(info.informative) ? info.informative : [];
-  const hit = arr.find(x => /ocean|sea|gulf|bay|channel|strait/i.test((x.name||x.description||"")));
-  return hit ? hit.name : null;
+function dtParts(d){
+  const date=d.toLocaleDateString("en-US",{month:"short",day:"2-digit",year:"numeric"});
+  const time=d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false,timeZone:"UTC"})+" UTC";
+  return {date,time};
 }
-async function getPlace(lat, lon){
-  // BigDataCloud: country (and sometimes ocean via localityInfo)
-  try{
-    const u = new URL("https://api.bigdatacloud.net/data/reverse-geocode-client");
-    u.searchParams.set("latitude", lat); u.searchParams.set("longitude", lon); u.searchParams.set("localityLanguage","en");
-    const r = await timeoutFetch(u, {cache:"no-store"});
-    if(r.ok){
-      const j = await r.json();
-      const ocean = pickOceanFromBDC(j.localityInfo);
-      if(ocean) return {label:ocean, isOcean:true, code:null};
-      if(j.countryName) return {label:j.countryName, isOcean:false, code:(j.countryCode||"").toLowerCase()};
-    }
-  }catch{}
-  // Nominatim fallback (often returns oceans/seas)
-  try{
-    const u2 = new URL("https://nominatim.openstreetmap.org/reverse");
-    u2.searchParams.set("format","jsonv2"); u2.searchParams.set("zoom","3");
-    u2.searchParams.set("lat",lat); u2.searchParams.set("lon",lon); u2.searchParams.set("accept-language","en");
-    const r2 = await timeoutFetch(u2, {cache:"no-store", headers:{'User-Agent':'ISS-Overlay'}});
-    if(r2.ok){
-      const j2 = await r2.json();
-      const name = j2?.name || j2?.address?.country || "Earth";
-      const code = (j2?.address?.country_code||"").toLowerCase();
-      const isOcean = /ocean|sea|gulf|bay|channel|strait/i.test(name) && !j2?.address?.country;
-      return {label:name, isOcean, code:isOcean?null:code};
-    }
-  }catch{}
-  return {label:"Earth", isOcean:false, code:null};
-}
-
-/* ---- Sun state ---- */
 function sunState(lat,lon,date){
-  const t = SunCalc.getTimes(date,lat,lon), n = date.getTime();
+  const t=SunCalc.getTimes(date,lat,lon), n=date.getTime();
   if(n>=t.sunrise.getTime() && n<=t.sunriseEnd.getTime()) return "Sunrise";
   if(n>=t.sunsetStart.getTime() && n<=t.sunset.getTime()) return "Sunset";
   if(n>t.sunriseEnd.getTime() && n<t.sunsetStart.getTime()) return "Daylight";
   return "Night";
 }
-
-/* ---- Unsplash (only when place changes; cached 30m) ---- */
-function ck(q){return "unsplash:"+q;}
-function cget(q){try{const r=localStorage.getItem(ck(q)); if(!r) return null; const o=JSON.parse(r); if(Date.now()-o.t>30*60*1000) return null; return o.v;}catch{return null}}
-function cset(q,v){try{localStorage.setItem(ck(q),JSON.stringify({t:Date.now(),v}))}catch{}}
-async function fetchUnsplash(query,isOcean){
-  if(!UNSPLASH_ACCESS_KEY) throw new Error("Unsplash key missing");
-  const q = isOcean ? `${query} ocean seascape horizon` : `${query} city skyline landscape`;
-  const cached = cget(q); if(cached) return cached;
-  const url = new URL("https://api.unsplash.com/search/photos");
-  url.searchParams.set("query", q);
-  url.searchParams.set("orientation", "landscape");
-  url.searchParams.set("content_filter", "high");
-  url.searchParams.set("per_page", "1");
-  url.searchParams.set("client_id", UNSPLASH_ACCESS_KEY);
-  const r = await timeoutFetch(url, {cache:"no-store"});
-  if(!r.ok) throw new Error("Unsplash "+r.status);
-  const j = await r.json();
-  if(!j.results?.length) throw new Error("No Unsplash results");
-  const p = j.results[0];
-  return cset(q, {url: p.urls.raw + "&w=256&h=192&fit=crop&auto=format", credit: `${p.user.name} / Unsplash`}) || {url: p.urls.raw + "&w=256&h=192&fit=crop&auto=format", credit: `${p.user.name} / Unsplash`};
-}
-
-/* ---- UI helpers ---- */
-function setFlag(place,isOcean,code){
-  el.flagBox.innerHTML = "";
-  if(isOcean){
-    el.oceanDot.hidden = false;
-    el.flagBox.appendChild(el.oceanDot);
-    return;
-  }
+function setBigFlag(code){ // iso-2 lower
   el.oceanDot.hidden = true;
-  let cc = (code||"").toLowerCase();
-  if(!cc) cc = ISO2_FALLBACK[norm(place)] || "";
-  if(cc){
-    const img = new Image();
-    img.src = `https://flagcdn.com/w40/${cc}.png`;
-    img.alt = place + " flag";
-    el.flagBox.appendChild(img);
-  }
+  el.bigFlag.innerHTML = "";
+  const img = new Image();
+  img.src = `https://flagcdn.com/w320/${code}.png`;
+  img.alt = "flag";
+  el.bigFlag.appendChild(img);
+}
+async function getPlace(lat, lon){
+  // BigDataCloud (country + ocean via localityInfo)
+  try{
+    const u=new URL("https://api.bigdatacloud.net/data/reverse-geocode-client");
+    u.searchParams.set("latitude",lat); u.searchParams.set("longitude",lon); u.searchParams.set("localityLanguage","en");
+    const r=await fetch(u,{cache:"no-store"}); if(r.ok){
+      const j=await r.json();
+      const info=j?.localityInfo?.informative||[];
+      const oceanObj=info.find(x=>/ocean|sea|gulf|bay|channel|strait/i.test((x.name||x.description||"")));
+      if(oceanObj){ return {label:oceanObj.name, isOcean:true, code:null}; }
+      if(j.countryName){ return {label:j.countryName, isOcean:false, code:(j.countryCode||"").toLowerCase()}; }
+    }
+  }catch(e){}
+  // Nominatim fallback
+  try{
+    const u2=new URL("https://nominatim.openstreetmap.org/reverse");
+    u2.searchParams.set("format","jsonv2"); u2.searchParams.set("zoom","3");
+    u2.searchParams.set("lat",lat); u2.searchParams.set("lon",lon); u2.searchParams.set("accept-language","en");
+    const r2=await fetch(u2,{cache:"no-store",headers:{'User-Agent':'ISS-Overlay'}}); if(r2.ok){
+      const j2=await r2.json();
+      const name=j2?.name||j2?.address?.country||"Earth";
+      const code=(j2?.address?.country_code||"").toLowerCase();
+      const isOcean=/ocean|sea|gulf|bay|channel|strait/i.test(name) && !j2?.address?.country;
+      return {label:name,isOcean,code:isOcean?null:code};
+    }
+  }catch(e){}
+  return {label:"Earth", isOcean:false, code:null};
+}
+async function oceanPhoto(place){
+  const u=new URL("https://api.unsplash.com/search/photos");
+  u.searchParams.set("query",`${place} ocean seascape horizon`);
+  u.searchParams.set("orientation","landscape");
+  u.searchParams.set("content_filter","high");
+  u.searchParams.set("per_page","1");
+  u.searchParams.set("client_id",UNSPLASH_ACCESS_KEY);
+  const r=await fetch(u,{cache:"no-store"}); if(!r.ok) throw new Error("Unsplash "+r.status);
+  const j=await r.json(); if(!j.results?.length) throw new Error("No ocean image");
+  const p=j.results[0];
+  return {url:p.urls.raw + "&w=512&h=384&fit=crop&auto=format", credit:`${p.user.name} / Unsplash`};
+}
+function paintThumb(url, credit){
+  const img=new Image();
+  img.onload=()=>{ el.thumb.src=url; el.credit.textContent=credit||""; el.credit.hidden=!credit; };
+  img.src=url;
 }
 
-/* ---- Main loop ---- */
-let lastPlaceLabel = "", lastGeo = {t:0, lat:0, lon:0};
-async function tick(){
+/*** COUNTRY INFO (population, growth %, migration rate/1k) ***/
+const countryCache = new Map(); // iso2 -> {population, growth, migRatePer1k}
+async function getCountryInfo(iso2){
+  if(!iso2) return null;
+  const key = iso2.toLowerCase();
+  if(countryCache.has(key)) return countryCache.get(key);
   try{
-    const iss = await getISS();
-
-    // 1) fast stats (1s)
-    const {date,time} = dtParts(iss.utc);
-    el.date.textContent = date;
-    el.time.textContent = time;
-    el.speed.textContent = `${iss.speed_kms.toFixed(4)} km/s`;
-    el.elev.textContent  = `Elev: ${iss.elev_km.toFixed(1)} km`;
-    el.coords.textContent= `${Math.abs(iss.lat).toFixed(2)} °${iss.lat>=0?"N":"S"}, ${Math.abs(iss.lon).toFixed(2)} °${iss.lon>=0?"E":"W"}`;
-    el.nowText.textContent = `Now: ${sunState(iss.lat,iss.lon,iss.utc)} (1 of 16)`;
-    el.live.style.display  = "inline-block";
-
-    // 2) place + image (throttled)
-    const movedFar = Math.abs(iss.lat-lastGeo.lat)+Math.abs(iss.lon-lastGeo.lon) > 0.75; // ~80–100 km
-    const due = (Date.now()-lastGeo.t) > GEO_MS;
-    if(movedFar || due || !lastPlaceLabel){
-      const place = await getPlace(iss.lat,iss.lon);
-      lastGeo = {t:Date.now(), lat:iss.lat, lon:iss.lon};
-
-      el.placeName.textContent = place.label;
-      setFlag(place.label, place.isOcean, place.code);
-
-      if(norm(place.label) !== norm(lastPlaceLabel)){
-        lastPlaceLabel = place.label;
-        try{
-          const {url,credit} = await fetchUnsplash(place.label, place.isOcean);
-          const preload = new Image();
-          preload.onload = ()=>{ el.thumb.src = url; el.thumb.classList.add("loaded"); el.credit.textContent = credit; el.credit.hidden = false; };
-          preload.src = url;
-        }catch{
-          el.thumb.src = DEFAULT_IMG; el.credit.hidden = true;
-        }
+    // Population from RestCountries
+    const rc = await (await fetch(`https://restcountries.com/v3.1/alpha/${key}?fields=population,name`)).json();
+    const population = Array.isArray(rc) ? rc[0]?.population : rc?.population;
+    // Growth % (annual) from World Bank SP.POP.GROW (grab latest non-null)
+    const wbGrow = await (await fetch(`https://api.worldbank.org/v2/country/${key}/indicator/SP.POP.GROW?format=json&per_page=60`)).json();
+    let growth = null;
+    if(Array.isArray(wbGrow) && Array.isArray(wbGrow[1])){
+      const row = wbGrow[1].find(x => x && x.value != null);
+      if(row) growth = row.value; // percent
+    }
+    // Net migration (5-year total) SM.POP.NETM -> approx per-year per 1k
+    const wbMig = await (await fetch(`https://api.worldbank.org/v2/country/${key}/indicator/SM.POP.NETM?format=json&per_page=60`)).json();
+    let migPer1k = null;
+    if(Array.isArray(wbMig) && Array.isArray(wbMig[1])){
+      const row = wbMig[1].find(x => x && x.value != null);
+      if(row && population){
+        const perYear = row.value / 5; // 5-year interval → approx annual
+        migPer1k = (perYear / population) * 1000;
       }
     }
-  }catch(e){
-    console.error(e);
-    showError(e.message || String(e));
+    const out = { population, growth, migPer1k };
+    countryCache.set(key, out);
+    return out;
+  }catch(e){ return null; }
+}
+
+/*** LEFT VISUAL ***/
+async function setLeftVisual(place, isOcean, code){
+  if(isOcean){
+    el.oceanDot.hidden = false; el.bigFlag.innerHTML = "";
+    try{
+      const {url,credit} = await oceanPhoto(place);
+      paintThumb(url, credit);
+    }catch{ paintThumb(DEFAULT_OCEAN, ""); }
+  }else{
+    el.oceanDot.hidden = true; if(code) setBigFlag(code);
+    paintThumb(`https://flagcdn.com/w320/${code}.png`, "");
+  }
+}
+
+/*** MODES ***/
+let panelMode = "status"; // or "info"
+const canShowInfo = state => !state.isOcean; // info only for countries
+let lastToggle = 0;
+
+/*** MAIN LOOP ***/
+let lastPlace="", lastGeo={t:0,lat:0,lon:0}, lastState={isOcean:true, code:null, label:"Earth"};
+async function tick(){
+  const iss = await getISS();
+  const {date,time} = dtParts(iss.utc);
+  const stateTxt = sunState(iss.lat, iss.lon, iss.utc);
+
+  // Throttle place lookup
+  const moved = Math.abs(iss.lat-lastGeo.lat)+Math.abs(iss.lon-lastGeo.lon) > 0.75;
+  const due   = (Date.now()-lastGeo.t) > GEO_MS;
+  if(moved || due || !lastPlace){
+    const p = await getPlace(iss.lat, iss.lon);
+    lastGeo = {t:Date.now(), lat:iss.lat, lon:iss.lon};
+    lastState = p;
+    el.place.textContent = p.label;
+    if(norm(p.label)!==norm(lastPlace)){ lastPlace = p.label; setLeftVisual(p.label, p.isOcean, p.code); }
+    else { if(p.isOcean){ el.oceanDot.hidden=false; el.bigFlag.innerHTML=""; } else if(p.code){ setBigFlag(p.code);} }
+  }
+
+  // Toggle mode every TOGGLE_MS (only if on land & we have stats)
+  if(Date.now()-lastToggle > TOGGLE_MS){
+    lastToggle = Date.now();
+    panelMode = (panelMode === "status" ? (canShowInfo(lastState) ? "info" : "status") : "status");
+  }
+
+  if(panelMode === "status"){
+    el.hdr.textContent = `Now: ${stateTxt} (1 of 16)`;
+    el.l1a.textContent = date;            el.l1b.textContent = time;
+    el.l2a.textContent = `${iss.speed_kms.toFixed(4)} km/s`; el.l2b.textContent = `Elev: ${iss.elev_km.toFixed(1)} km`;
+    el.l3a.textContent = `${Math.abs(iss.lat).toFixed(2)} °${iss.lat>=0?"N":"S"}`;
+    el.l3b.textContent = `${Math.abs(iss.lon).toFixed(2)} °${iss.lon>=0?"E":"W"}`;
+  }else{
+    el.hdr.textContent = `Country Information`;
+    // fetch/calc once per toggle period per country code
+    const info = await getCountryInfo(lastState.code);
+    const pop  = info?.population ? nf0.format(info.population) : "—";
+    const grow = info?.growth != null ? `${nf2.format(info.growth)}%` : "—";
+    const mig  = info?.migPer1k != null ? `${nf2.format(info.migPer1k)}/1000 ppl.` : "—";
+    el.l1a.textContent = `Population:`; el.l1b.textContent = pop;
+    el.l2a.textContent = `Growth Rate:`; el.l2b.textContent = grow;
+    el.l3a.textContent = `Migration Rate:`; el.l3b.textContent = mig;
   }
 }
 tick();
