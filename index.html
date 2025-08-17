@@ -3,323 +3,270 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>ISS Info Widget</title>
+<title>ISS Overlay</title>
 <style>
   :root{
-    --w: 560px;             /* overall widget width */
-    --pad: 10px;
-    --card:#0f1924;
-    --panel:#0b141d;
-    --ink:#e7eef7;
-    --muted:#7f94ad;
-    --accent:#1fb6ff;
-    --live:#b31414;
-    --shadow: 0 12px 30px rgba(0,0,0,.45);
+    --w: 460px;                /* total widget width */
     --radius: 14px;
+    --shadow: 0 14px 34px rgba(0,0,0,.42);
+    --panel: #0d1823;
+    --card:  #0a131c;
+    --edge:  #0a1d2b;
+    --ink:   #e7eef7;
+    --muted: #8aa3bd;
+    --live1: #e53c3c;
+    --live2: #b81414;
+    --accent:#2ac3ff;
   }
   html,body{height:100%;background:transparent;margin:0}
-  *{box-sizing:border-box;font-family: system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif}
-  .widget{
-    width:var(--w);
-    margin:18px;
-    color:var(--ink);
-    filter: drop-shadow(var(--shadow));
-  }
+  *{box-sizing:border-box;font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+
+  .wrap{width:var(--w); margin:18px; filter:drop-shadow(var(--shadow)); color:var(--ink)}
+
   .title{
-    background: linear-gradient(180deg,#0f1e2c,#0c1520);
-    border:1px solid #0c1a26;
+    background: linear-gradient(180deg,#101f2d,#0b1621);
+    border:1px solid var(--edge);
     border-radius: var(--radius);
-    padding: 14px 18px;
+    padding: 10px 14px;
     font-weight: 800;
-    font-size: 28px;
+    font-size: 22px;
     letter-spacing:.2px;
   }
 
   .row{
-    margin-top:10px;
+    margin-top:8px;
     display:grid;
-    grid-template-columns: 110px 1fr;
-    gap:10px;
+    grid-template-columns: 98px 1fr;
+    gap:8px;
   }
 
   .flagCol{
-    background: var(--panel);
-    border:1px solid #0b1823;
+    background: var(--card);
+    border:1px solid var(--edge);
     border-radius: var(--radius);
-    padding:12px 10px;
-    display:flex;
-    flex-direction:column;
-    justify-content:space-between;
-    align-items:center;
-    min-height: 130px;
+    padding:10px 8px;
+    display:flex; flex-direction:column; align-items:center; justify-content:space-between;
+    min-height:128px;
   }
   .flagBox{
-    width:92px;height:62px;border-radius:8px;
-    overflow:hidden;border:1px solid #0d2030;
-    display:grid;place-items:center;background:#08111a;
+    width:84px;height:56px;border-radius:8px;overflow:hidden;border:1px solid #0e2232;
+    background:#08121b; display:grid;place-items:center;
   }
   .flagBox img{width:100%;height:100%;object-fit:cover;display:block}
+  .ocean{width:100%;height:100%;display:block}
 
   .live{
+    margin-top:10px;
     display:inline-flex;align-items:center;gap:6px;
-    background: linear-gradient(180deg,#d53030,#a91010);
-    color:#fff;font-weight:800;font-size:13px;
     padding:6px 10px;border-radius:9px;
-    border:1px solid #7b0f0f; text-transform:uppercase;
+    font-size:12px;font-weight:900; text-transform:uppercase; letter-spacing:.2px;
+    background: linear-gradient(180deg,var(--live1),var(--live2));
+    border:1px solid #7f1010; color:#fff;
   }
   .live:before{
-    content:""; width:8px; height:8px; border-radius:50%;
-    background:#fff; box-shadow:0 0 10px 2px rgba(255,255,255,.55) inset, 0 0 8px 1px rgba(0,0,0,.35);
+    content:"";width:8px;height:8px;border-radius:50%;
+    background:#fff; box-shadow:0 0 10px 2px rgba(255,255,255,.55) inset, 0 0 8px rgba(0,0,0,.35);
   }
 
-  .panel{
+  .card{
     background: var(--panel);
-    border:1px solid #0b1823;
+    border:1px solid var(--edge);
     border-radius: var(--radius);
-    padding: 12px 12px 14px;
+    padding: 12px;
     position:relative;
+    min-height:128px;
     overflow:hidden;
-    min-height:130px;
   }
 
   /* Slides */
   .slides{position:relative}
   .slide{
-    position:absolute; inset:0; opacity:0; transform: translateY(6px);
-    transition: opacity .35s ease, transform .35s ease;
+    position:absolute; inset:0; padding:6px 6px 8px;
     display:grid; place-content:center;
+    opacity:0; transform: translateY(6px);
+    transition: opacity .35s ease, transform .35s ease;
   }
   .slide.show{opacity:1; transform:none}
-  .slideTitle{
-    font-weight:900; letter-spacing:.25px; margin: 0 0 6px 0; font-size:18px;
-  }
 
-  /* Stat grid (centered with colons) */
+  .slideTitle{margin:0 0 2px 0; font-weight:900; font-size:14px; color:var(--muted); letter-spacing:.2px; text-align:center}
+
   .stats{
-    display:grid;
-    grid-template-columns: auto auto;
-    gap: 10px 20px;
-    justify-content:center;
-    align-items:center;
-    font-size:15px;
+    display:grid; grid-template-columns:auto auto; gap:8px 18px;
+    justify-content:center; align-items:center; font-size:14px;
   }
   .label{color:var(--muted)}
-  .label:after{content:":"; margin-left:4px; color:var(--muted)}
-  .val strong{font-variant-numeric: tabular-nums; letter-spacing:.3px}
+  .label:after{content:":"; margin-left:4px}
+  .val strong{font-variant-numeric:tabular-nums; letter-spacing:.2px}
+  .tiny{font-size:11px;color:var(--muted);margin-left:4px}
 
-  /* small helper text */
-  .tiny{font-size:12px;color:var(--muted);margin-left:6px}
-
-  /* Ocean fallback icon (SVG) */
-  .ocean{
-    width:100%; height:100%; display:block;
-  }
+  /* Pagination dots */
+  .dots{position:absolute; bottom:6px; left:0; right:0; display:flex; gap:6px; justify-content:center}
+  .dot{width:6px; height:6px; border-radius:50%; background:#213241}
+  .dot.on{background:var(--accent); box-shadow:0 0 8px var(--accent)}
 </style>
 </head>
 <body>
-  <div class="widget" id="widget">
-    <div class="title" id="locTitle">—</div>
+<div class="wrap">
+  <div class="title" id="locTitle">—</div>
 
-    <div class="row">
-      <div class="flagCol">
-        <div class="flagBox">
-          <img id="flag" alt="Flag" />
-          <svg id="oceanIcon" class="ocean" viewBox="0 0 64 40" style="display:none">
-            <defs>
-              <linearGradient id="g" x1="0" x2="0" y1="0" y2="1">
-                <stop offset="0" stop-color="#4cc3ff"/>
-                <stop offset="1" stop-color="#1c6fb6"/>
-              </linearGradient>
-            </defs>
-            <rect x="0" y="0" width="64" height="40" rx="8" fill="#06121a" />
-            <path d="M6 26c4 0 4-3 8-3s4 3 8 3 4-3 8-3 4 3 8 3 4-3 8-3 4 3 8 3"
-                  stroke="url(#g)" stroke-width="4" fill="none" stroke-linecap="round"/>
-            <path d="M6 34c4 0 4-3 8-3s4 3 8 3 4-3 8-3 4 3 8 3 4-3 8-3 4 3 8 3"
-                  stroke="url(#g)" stroke-width="4" fill="none" stroke-linecap="round" opacity=".85"/>
-          </svg>
-        </div>
-        <div class="live">Live Now</div>
+  <div class="row">
+    <div class="flagCol">
+      <div class="flagBox">
+        <img id="flag" alt="Flag" />
+        <svg id="oceanIcon" class="ocean" viewBox="0 0 64 40" style="display:none">
+          <defs>
+            <linearGradient id="g" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0" stop-color="#49c9ff"/><stop offset="1" stop-color="#1a7fca"/>
+            </linearGradient>
+          </defs>
+          <rect x="0" y="0" width="64" height="40" rx="8" fill="#06121a" />
+          <path d="M6 26c4 0 4-3 8-3s4 3 8 3 4-3 8-3 4 3 8 3 4-3 8-3 4 3 8 3"
+                stroke="url(#g)" stroke-width="4" fill="none" stroke-linecap="round"/>
+          <path d="M6 34c4 0 4-3 8-3s4 3 8 3 4-3 8-3 4 3 8 3 4-3 8-3 4 3 8 3"
+                stroke="url(#g)" stroke-width="4" fill="none" stroke-linecap="round" opacity=".85"/>
+        </svg>
+      </div>
+      <div class="live">Live Now</div>
+    </div>
+
+    <div class="card">
+      <div class="slides" id="slides">
+        <!-- Slide 0: Stats -->
+        <section class="slide show" id="s0">
+          <h4 class="slideTitle">ISS Telemetry</h4>
+          <div class="stats">
+            <div class="label">UTC</div>   <div class="val"><strong id="utc">—</strong> <span class="tiny">UTC</span></div>
+            <div class="label">Date</div>  <div class="val"><strong id="date">—</strong></div>
+            <div class="label">Speed</div> <div class="val"><strong id="speed">—</strong> <span class="tiny">km/s</span></div>
+            <div class="label">Elev</div>  <div class="val"><strong id="elev">—</strong> <span class="tiny">km</span></div>
+          </div>
+        </section>
+
+        <!-- Slide 1: Country facts -->
+        <section class="slide" id="s1">
+          <h4 class="slideTitle">Country Information</h4>
+          <div class="stats">
+            <div class="label">Capital</div> <div class="val"><strong id="capital">—</strong></div>
+            <div class="label">Density</div> <div class="val"><strong id="density">—</strong></div>
+            <div class="label">Poverty</div> <div class="val"><strong id="poverty">—</strong></div>
+          </div>
+        </section>
+
+        <!-- Slide 2: Life expectancy -->
+        <section class="slide" id="s2">
+          <h4 class="slideTitle">Life Expectancy</h4>
+          <div class="stats">
+            <div class="label">Overall</div> <div class="val"><strong id="lifeAll">—</strong> <span class="tiny">yrs</span></div>
+            <div class="label">Male</div>    <div class="val"><strong id="lifeM">—</strong> <span class="tiny">yrs</span></div>
+            <div class="label">Female</div>  <div class="val"><strong id="lifeF">—</strong> <span class="tiny">yrs</span></div>
+            <div class="label">Median Age</div> <div class="val"><strong id="medianAge">—</strong> <span class="tiny">yrs</span></div>
+          </div>
+        </section>
       </div>
 
-      <div class="panel">
-        <div class="slides" id="slides">
-          <!-- Slide 1: Stats -->
-          <section class="slide show" id="slide-stats">
-            <div>
-              <h3 class="slideTitle">ISS Telemetry</h3>
-              <div class="stats">
-                <div class="label">UTC</div>   <div class="val"><strong id="utc">—</strong> <span class="tiny">UTC</span></div>
-                <div class="label">Date</div>  <div class="val"><strong id="date">—</strong></div>
-                <div class="label">Speed</div> <div class="val"><strong id="speed">—</strong> <span class="tiny">km/s</span></div>
-                <div class="label">Elev</div>  <div class="val"><strong id="elev">—</strong> <span class="tiny">km</span></div>
-              </div>
-            </div>
-          </section>
-
-          <!-- Slide 2: Country info -->
-          <section class="slide" id="slide-country">
-            <div>
-              <h3 class="slideTitle">Country Information</h3>
-              <div class="stats">
-                <div class="label">Capital</div> <div class="val"><strong id="capital">—</strong></div>
-                <div class="label">Density</div> <div class="val"><strong id="density">—</strong></div>
-                <div class="label">Poverty</div> <div class="val"><strong id="poverty">—</strong></div>
-              </div>
-            </div>
-          </section>
-
-          <!-- Slide 3: Life expectancy -->
-          <section class="slide" id="slide-life">
-            <div>
-              <h3 class="slideTitle">Life Expectancy</h3>
-              <div class="stats">
-                <div class="label">Overall</div> <div class="val"><strong id="lifeAll">—</strong> <span class="tiny">yrs</span></div>
-                <div class="label">Male</div>    <div class="val"><strong id="lifeM">—</strong> <span class="tiny">yrs</span></div>
-                <div class="label">Female</div>  <div class="val"><strong id="lifeF">—</strong> <span class="tiny">yrs</span></div>
-                <div class="label">Median Age</div> <div class="val"><strong id="medianAge">—</strong> <span class="tiny">yrs</span></div>
-              </div>
-            </div>
-          </section>
-        </div>
+      <div class="dots">
+        <div class="dot on"></div>
+        <div class="dot"></div>
+        <div class="dot"></div>
       </div>
     </div>
   </div>
+</div>
 
 <script>
-/* ---------------- config ---------------- */
-const API_BASE = "https://iss-live.charlesleahy.workers.dev"; // your Worker
-const SLIDE_MS = 10000; // rotate every 10s
+/* ------------ settings ------------ */
+const API = "https://iss-live.charlesleahy.workers.dev";
+const ROTATE_MS = 9000;      // slide duration
+const REFRESH_MS = 20000;    // data refresh
 
-/* ---------------- helpers ---------------- */
-const $ = (sel) => document.querySelector(sel);
-
-function fmtDate(d){
-  // YYYY-MM-DD
-  const y = d.getUTCFullYear();
-  const m = String(d.getUTCMonth()+1).padStart(2,"0");
-  const dd= String(d.getUTCDate()).padStart(2,"0");
-  return `${y}-${m}-${dd}`;
-}
-function fmtTime(d){
-  return [d.getUTCHours(), d.getUTCMinutes(), d.getUTCSeconds()]
-    .map(v=>String(v).padStart(2,"0")).join(":");
-}
-function setText(id, v){ const el=$(id); if(el) el.textContent = v ?? "—"; }
-function showOcean(){
-  $("#flag").style.display="none";
-  $("#oceanIcon").style.display="block";
-}
+/* ------------ helpers ------------ */
+const $ = s => document.querySelector(s);
+function tUTC(d){return [d.getUTCHours(),d.getUTCMinutes(),d.getUTCSeconds()].map(v=>String(v).padStart(2,"0")).join(":")}
+function dUTC(d){return `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,"0")}-${String(d.getUTCDate()).padStart(2,"0")}`}
+function setText(sel,val){const el=$(sel); if(el) el.textContent=(val??"—")}
+function showOcean(){ $("#flag").style.display="none"; $("#oceanIcon").style.display="block" }
 function showFlag(iso2){
   if(!iso2){ showOcean(); return; }
-  const code = iso2.toLowerCase();
-  const url = `https://flagcdn.com/w80/${code}.png`;
-  const img = $("#flag");
-  img.onload = ()=>{ img.style.display="block"; $("#oceanIcon").style.display="none"; };
-  img.onerror = showOcean;
-  img.src = url;
+  const img=$("#flag");
+  img.onload=()=>{img.style.display="block"; $("#oceanIcon").style.display="none"}
+  img.onerror=showOcean;
+  img.src=`https://flagcdn.com/w80/${iso2.toLowerCase()}.png`;
+}
+async function getJSON(url, timeout=8000){
+  const ctl=new AbortController(); const t=setTimeout(()=>ctl.abort(),timeout);
+  try{ const r=await fetch(url,{signal:ctl.signal,headers:{'user-agent':'iss-overlay'}}); clearTimeout(t); if(!r.ok) throw 0; return r.json(); }
+  catch(e){ clearTimeout(t); throw new Error("fetch-failed "+url); }
 }
 
-/* ----------- data fetchers (Worker + WB) ----------- */
-async function getJSON(url, timeout=7000){
-  const ctl = new AbortController();
-  const t = setTimeout(()=>ctl.abort(), timeout);
-  const r = await fetch(url, {signal: ctl.signal, headers:{'user-agent':'iss-overlay'}}).catch(()=>({ok:false}));
-  clearTimeout(t);
-  if(!r || !r.ok) throw new Error("fetch-failed "+url);
-  return r.json();
-}
-
-async function worldBank(iso2, indicator){
-  // returns latest numeric value, or null
+/* WB helpers */
+async function wbVal(iso2, code){
   try{
-    const url = `https://api.worldbank.org/v2/country/${iso2}/indicator/${indicator}?format=json&per_page=60`;
-    const data = await getJSON(url, 9000);
-    const arr = (data && data[1]) || [];
-    for(const row of arr){
-      if(row.value != null) return Number(row.value.toFixed(1));
-    }
+    const j=await getJSON(`https://api.worldbank.org/v2/country/${iso2}/indicator/${code}?format=json&per_page=60`,10000);
+    const arr=(j && j[1])||[];
+    for(const row of arr){ if(row.value!=null) return Number(row.value.toFixed(1)); }
   }catch(e){}
   return null;
 }
 
-async function lifeBlock(iso2){
-  if(!iso2) return {life:null, male:null, female:null, median:null};
-  const [life, female, male] = await Promise.all([
-    worldBank(iso2, "SP.DYN.LE00.IN"),     // overall
-    worldBank(iso2, "SP.DYN.LE00.FE.IN"),  // female
-    worldBank(iso2, "SP.DYN.LE00.MA.IN"),  // male
-  ]);
-  // No easy WB median-age series globally; leave blank if unknown.
-  return {life, male, female, median:null};
-}
-
-/* ----------------- UI & loop ----------------- */
-let slideIdx = 0;
-function rotateSlides(){
-  const slides = [...document.querySelectorAll(".slide")];
-  slides.forEach(s=>s.classList.remove("show"));
-  slideIdx = (slideIdx + 1) % slides.length;
-  slides[slideIdx].classList.add("show");
-}
-
+/* ------------ UI update ------------ */
 async function update(){
   try{
-    // 1) live ISS
-    const iss = await getJSON(`${API_BASE}/iss`);
     const now = new Date();
-    setText("#utc", fmtTime(now));
-    setText("#date", fmtDate(now));
+    setText("#utc",  tUTC(now));
+    setText("#date", dUTC(now));
+
+    // 1) ISS
+    const iss = await getJSON(`${API}/iss`);
     setText("#speed", (iss.speed_kps ?? 7.66).toFixed(2));
     setText("#elev",  Math.round(iss.alt_km ?? 420));
 
-    // 2) reverse geocode
-    const rg  = await getJSON(`${API_BASE}/rg?lat=${iss.lat}&lon=${iss.lon}`);
-    const title = rg.ocean ? `${rg.ocean}` :
-      (rg.region ? `${rg.region}, ${rg.country}` : `${rg.country || "—"}`);
+    // 2) Reverse geocode
+    const rg = await getJSON(`${API}/rg?lat=${iss.lat}&lon=${iss.lon}`);
+    const title = rg.ocean ? rg.ocean : (rg.region ? `${rg.region}, ${rg.country}` : (rg.country || "—"));
     setText("#locTitle", title);
+    rg.ocean ? showOcean() : showFlag(rg.iso2);
 
-    // 3) flag / ocean
-    if(rg.ocean) showOcean(); else showFlag(rg.iso2);
-
-    // 4) country facts via Worker
-    let capital="—", density="—", poverty="—";
+    // 3) Country facts
     if(rg.iso2){
-      const facts = await getJSON(`${API_BASE}/facts?iso2=${rg.iso2}`);
-      capital = facts.capital || "—";
-      density = facts.density || "—";
-      poverty = facts.poverty || "—";
+      const facts = await getJSON(`${API}/facts?iso2=${rg.iso2}`);
+      setText("#capital", facts.capital || "—");
+      setText("#density", facts.density || "—");
+      setText("#poverty", facts.poverty || "—");
 
-      // life expectancy from WorldBank (CORS is OK)
-      const L = await lifeBlock(rg.iso2);
-      setText("#lifeAll",  L.life ?? "—");
-      setText("#lifeM",    L.male ?? "—");
-      setText("#lifeF",    L.female ?? "—");
-      setText("#medianAge",L.median ?? "—");
+      // Life
+      const [life, male, female] = await Promise.all([
+        wbVal(rg.iso2,"SP.DYN.LE00.IN"),
+        wbVal(rg.iso2,"SP.DYN.LE00.MA.IN"),
+        wbVal(rg.iso2,"SP.DYN.LE00.FE.IN")
+      ]);
+      setText("#lifeAll",   life ?? "—");
+      setText("#lifeM",     male ?? "—");
+      setText("#lifeF",     female ?? "—");
+      setText("#medianAge", "—"); // left blank (no clean global source)
     }else{
-      // ocean: clear life fields
-      ["#lifeAll","#lifeM","#lifeF","#medianAge"].forEach(sel=>setText(sel,"—"));
+      ["#capital","#density","#poverty","#lifeAll","#lifeM","#lifeF","#medianAge"].forEach(s=>setText(s,"—"));
     }
-    setText("#capital", capital);
-    setText("#density", density);
-    setText("#poverty", poverty);
-
   }catch(e){
-    // fallbacks on error
-    setText("#locTitle","—");
+    // leave whatever was shown last; no hard crash
   }
 }
 
-/* ---------------- boot ---------------- */
-(function init(){
-  // initial
-  update();
+/* ------------ slide rotator ------------ */
+let idx=0;
+function rotate(){
+  const slides=[...document.querySelectorAll(".slide")];
+  const dots=[...document.querySelectorAll(".dot")];
+  slides.forEach(s=>s.classList.remove("show"));
+  dots.forEach(d=>d.classList.remove("on"));
+  idx=(idx+1)%slides.length;
+  slides[idx].classList.add("show");
+  dots[idx].classList.add("on");
+}
 
-  // refresh data every 20s
-  setInterval(update, 20000);
-
-  // rotate slides
-  setInterval(rotateSlides, SLIDE_MS);
-})();
+/* ------------ boot ------------ */
+update();
+setInterval(update, REFRESH_MS);
+setInterval(rotate, ROTATE_MS);
 </script>
 </body>
 </html>
