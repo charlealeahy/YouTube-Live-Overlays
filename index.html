@@ -1,218 +1,177 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>ISS Info Widget</title>
+<link rel="preconnect" href="https://flagcdn.com">
 <style>
   :root{
-    --w: 560px;
-    --gap: 14px;
-    --bg: #0e161c;
-    --panel: #111b23;
-    --ink: #e8f1f8;
-    --muted:#8fa6b6;
+    --bg:#0e161c;
+    --panel:#0f1b23;
+    --card:#0b151c;
+    --muted:#8aa9c6;
+    --text:#e9f3ff;
     --accent:#4db2ff;
-    --pill:#c92c2c;
-    --r:18px;
-    --shadow: 0 10px 26px rgba(0,0,0,.45);
+    --shadow:0 14px 40px rgba(0,0,0,.45);
+    --radius:18px;
   }
-  html,body{height:100%;margin:0;background:#0b1318;color:var(--ink);font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+  html,body{height:100%;margin:0;background:#0a1218;font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:var(--text)}
   *{box-sizing:border-box}
-  .widget{width:var(--w);margin:26px; padding:18px;border-radius:calc(var(--r)+6px);
-    background:linear-gradient(180deg,#0f1820,#0a1217); box-shadow:var(--shadow)}
-  .title{display:flex;justify-content:center;align-items:center;
-    border-radius:var(--r); background:var(--panel); padding:14px 18px;
-    font-weight:700; font-size:26px; letter-spacing:.3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-  .row{margin-top:12px; display:grid; grid-template-columns:120px 1fr; gap:var(--gap); align-items:stretch;}
-  .side{background:var(--panel); border-radius:var(--r); padding:14px;
-        display:flex; flex-direction:column; justify-content:center; align-items:center}
-  .flag{width:92px;height:64px; border-radius:10px; object-fit:cover; display:block}
-  .live{margin-top:16px; background:var(--pill); color:#fff; font-weight:800; font-size:16px;
-        padding:9px 16px; border-radius:999px; text-align:center; min-width:72px; box-shadow:0 2px 6px rgba(0,0,0,.35)}
-  .card{background:var(--panel); border-radius:var(--r); padding:16px 18px; display:flex; flex-direction:column}
-  .sectionTitle{font-weight:700; margin-bottom:10px}
-  .grid{display:grid; grid-template-columns:auto 1fr; column-gap:14px; row-gap:10px; align-content:start}
-  .label{color:var(--muted)}
-  .val{font-variant-numeric:tabular-nums}
-  .progress{height:6px; width:100%; margin-top:auto; background:#0a1015; border-radius:7px; overflow:hidden}
-  .bar{height:100%; width:0%; background:linear-gradient(90deg,#79c9ff,var(--accent)); transition:width .2s linear}
-  .hide{display:none !important}
-  @media (max-width:640px){ :root{--w: 96vw} .title{font-size:22px} }
+  .wrap{padding:18px}
+  .widget{
+    width: 560px; max-width: 96vw;
+    background: linear-gradient(180deg,#101b24,#0c151b);
+    border: 1px solid #0b2433;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 18px 18px 16px 18px;
+  }
+  .title{
+    display:grid; place-items:center;
+    height:64px;
+    background: radial-gradient(120% 120% at -10% -20%,#0e2230 0,#0c151b 60%);
+    border:1px solid #123246;
+    border-radius: 14px;
+    font-weight: 800; letter-spacing:.3px; font-size:28px;
+  }
+  .row{
+    margin-top:14px;
+    display:grid; grid-template-columns:118px 1fr; gap:14px;
+  }
+  .flagBox{
+    background: var(--card);
+    border:1px solid #122738;
+    border-radius: 14px;
+    padding: 12px 12px 56px 12px; /* leave room for LIVE badge */
+    position: relative;
+    display:grid; place-items:center;
+    min-height: 136px;
+  }
+  .flag{
+    width: 88px; height: 58px; object-fit: cover; border-radius: 8px;
+    display:block;
+  }
+  .live{
+    position:absolute; left:12px; bottom:12px;
+    background:linear-gradient(#e22,#a40);
+    border-radius: 12px; padding:7px 14px;
+    font-weight:800; color:#fff; letter-spacing:.6px;
+    border:1px solid rgba(0,0,0,.35); box-shadow: 0 6px 20px rgba(0,0,0,.35);
+    text-transform: uppercase; font-size:14px;
+    display:flex; align-items:center; gap:8px;
+  }
+  .dot{width:8px;height:8px;background:#fff;border-radius:999px;box-shadow:0 0 10px #fff}
+  .card{
+    background: var(--card);
+    border:1px solid #122738;
+    border-radius: 14px;
+    padding: 16px 18px;
+    display:grid; gap:10px;
+    min-height: 136px;
+  }
+  .kv{
+    display:grid; grid-template-columns:120px 1fr; align-items:baseline;
+    font-size:16px; line-height:1.15;
+  }
+  .k{color:var(--muted)}
+  .v{font-weight:700}
 </style>
 </head>
 <body>
-  <div class="widget" id="w">
-    <div class="title" id="title">—</div>
+  <div class="wrap">
+    <div class="widget" id="widget">
+      <div class="title" id="place">—</div>
 
-    <div class="row">
-      <div class="side">
-        <img id="flag" class="flag" alt="Flag / Photo"/>
-        <div class="live" id="livePill">LIVE</div>
-      </div>
+      <div class="row">
+        <div class="flagBox">
+          <img id="flag" class="flag" alt="Flag / Photo" />
+          <div class="live"><span class="dot"></span>LIVE</div>
+        </div>
 
-      <div class="card">
-        <div class="sectionTitle" id="cardTitle">—</div>
-        <div class="grid" id="grid"></div>
-        <div class="progress" id="prog"><div class="bar" id="bar"></div></div>
+        <div class="card" id="now">
+          <div class="kv"><div class="k">UTC :</div>   <div class="v" id="utc">—</div></div>
+          <div class="kv"><div class="k">Date :</div>  <div class="v" id="date">—</div></div>
+          <div class="kv"><div class="k">Speed :</div> <div class="v" id="speed">—</div></div>
+          <div class="kv"><div class="k">Elev :</div>  <div class="v" id="alt">—</div></div>
+        </div>
       </div>
     </div>
   </div>
 
 <script>
 const API = "https://iss-live.charlesleahy.workers.dev";
-
-/* Fixed, ocean-only photos (no city shots) */
-const OCEAN_PHOTOS = {
-  "Pacific Ocean" : "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=640&q=60",
-  "Atlantic Ocean": "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=640&q=60",
-  "Indian Ocean"  : "https://images.unsplash.com/photo-1493558103817-58b2924bce98?auto=format&fit=crop&w=640&q=60",
-  "Southern Ocean": "https://images.unsplash.com/photo-1518837695005-2083093ee35b?auto=format&fit=crop&w=640&q=60",
-  "Arctic Ocean"  : "https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=640&q=60"
+const els = {
+  place: document.getElementById('place'),
+  flag:  document.getElementById('flag'),
+  utc:   document.getElementById('utc'),
+  date:  document.getElementById('date'),
+  speed: document.getElementById('speed'),
+  alt:   document.getElementById('alt'),
 };
 
-const $ = s => document.querySelector(s);
-const titleEl = $('#title'), flagEl = $('#flag'), gridEl = $('#grid'),
-      cardTitle = $('#cardTitle'), barEl = $('#bar'), progEl = $('#prog');
+// curated ocean photos (stable links)
+const OCEAN_IMG = {
+  "Pacific Ocean": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/15/Pacific_Ocean_-_Fiji_%28Unsplash%29.jpg/512px-Pacific_Ocean_-_Fiji_%28Unsplash%29.jpg",
+  "Atlantic Ocean": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/20/Atlantic_Ocean_view_from_madeira.jpg/512px-Atlantic_Ocean_view_from_madeira.jpg",
+  "Indian Ocean": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9a/Indian_Ocean_Maldives.jpg/512px-Indian_Ocean_Maldives.jpg",
+  "Southern Ocean": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9a/Southern_Ocean_-_iceberg.jpg/512px-Southern_Ocean_-_iceberg.jpg",
+  "Arctic Ocean": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/79/Arctic_Ocean_ice.jpg/512px-Arctic_Ocean_ice.jpg"
+};
 
-const fmt2    = n => (n==null? "—" : (Math.round(n*100)/100).toLocaleString('en-US'));
-const pad2    = n => String(n).padStart(2,'0');
-const utcNow  = () => { const d=new Date();
-  return `${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}:${pad2(d.getUTCSeconds())}`; };
-
-function flagURL(iso2){ return `https://flagcdn.com/w80/${(iso2||'').toLowerCase()}.png`; }
-
-/* header + image */
-function setHeader(place){
-  const name = place.ocean
-    ? place.ocean
-    : `${place.region ? place.region + ', ' : ''}${place.country || ''}`.trim().replace(/^,\s*/,'');
-  titleEl.textContent = name || '—';
-}
-function setFlag(place){
-  if (place.ocean){
-    flagEl.src = OCEAN_PHOTOS[place.ocean] || OCEAN_PHOTOS["Pacific Ocean"];
-    flagEl.alt = place.ocean + " photo";
-  }else{
-    flagEl.src = place.iso2 ? flagURL(place.iso2) : OCEAN_PHOTOS["Pacific Ocean"];
-    flagEl.alt = place.iso2 || "—";
-  }
+function fmt(num, unit){
+  return `${num.toLocaleString('en-US',{maximumFractionDigits: (unit==='km' ? 0 : 2)})} ${unit}`;
 }
 
-/* slides */
-function addRow(label, value){
-  const l = document.createElement('div'); l.className="label"; l.textContent = label;
-  const v = document.createElement('div'); v.className="val";   v.textContent = value ?? "—";
-  gridEl.appendChild(l); gridEl.appendChild(v);
-}
-function renderStats(state, place){
-  cardTitle.textContent = "Now";
-  gridEl.innerHTML = "";
-  addRow("UTC :", utcNow() + " UTC");
-  addRow("Date :", new Date().toISOString().slice(0,10));
-  addRow("Speed :", fmt2(state.speed_kps) + " km/s");
-  addRow("Elev :", fmt2(state.alt_km) + " km");
-}
-function renderCountry(state, place, facts){
-  cardTitle.textContent = "Country Information";
-  gridEl.innerHTML = "";
-  addRow("Capital :", facts.capital ?? "—");
-  addRow("Density :", facts.density ?? "—");
-  addRow("Poverty :", facts.poverty ?? "—");
-}
-function renderLife(state, place, life){
-  cardTitle.textContent = "Life & Age";
-  gridEl.innerHTML = "";
-  addRow("Life Expectancy :", life.life ?? "—");
-  addRow("Median Age :", life.median ?? "—");
-  addRow("Male :", life.male ?? "—");
-  addRow("Female :", life.female ?? "—");
-}
-
-/* slider */
-let slides=[], slideIdx=0, tick=null, progTimer=null, secondsPer=7;
-function buildSlides(place, facts, life){
-  const arr = [{name:"stats", fn:()=>renderStats(lastState, place)}];
-  if (!place.ocean){
-    arr.push({name:"country", fn:()=>renderCountry(lastState, place, facts)});
-    arr.push({name:"life",    fn:()=>renderLife(lastState, place, life)});
-  }
-  return arr;
-}
-function startSlider(){
-  stopSlider();
-  if (slides.length<=1){
-    progEl.classList.add('hide');
-    slides[0]?.fn();
+function setFlagOrPhoto(meta){
+  // country flag
+  if (meta.iso2){
+    const iso = meta.iso2.toLowerCase();
+    els.flag.src = `https://flagcdn.com/w80/${iso}.png`;
+    els.flag.alt = `${meta.country} flag`;
     return;
   }
-  progEl.classList.remove('hide');
-  slideIdx = 0;
-  nextSlide();
-  tick = setInterval(nextSlide, secondsPer*1000);
-  let t=0;
-  progTimer = setInterval(()=>{
-    t += 0.2;
-    const within = (t % secondsPer) / secondsPer;
-    barEl.style.width = (within*100).toFixed(1)+"%";
-  },200);
-}
-function nextSlide(){ slides[slideIdx].fn(); slideIdx = (slideIdx+1) % slides.length; }
-function stopSlider(){ clearInterval(tick); clearInterval(progTimer); barEl.style.width='0%'; }
-
-/* data */
-let lastState=null, lastPlace=null, lastKey=null;
-
-async function getJSON(u, timeout=8000){
-  const ctl = new AbortController(); const id=setTimeout(()=>ctl.abort(), timeout);
-  try{ const r=await fetch(u,{signal:ctl.signal, headers:{'user-agent':'iss-overlay-widget'}}); if(!r.ok) throw new Error(r.status); return await r.json(); }
-  finally{ clearTimeout(id); }
+  // ocean photo fallback
+  const name = meta.ocean || "Pacific Ocean";
+  els.flag.src = OCEAN_IMG[name] || OCEAN_IMG["Pacific Ocean"];
+  els.flag.alt = name;
 }
 
-async function refresh(){
+async function getJSON(url, timeoutMs=7000){
+  const ac = new AbortController();
+  const t = setTimeout(()=>ac.abort(), timeoutMs);
   try{
-    const iss = await getJSON(`${API}/iss`);
-    lastState = iss;
-
-    const rg = await getJSON(`${API}/rg?lat=${iss.lat}&lon=${iss.lon}`);
-    lastPlace = rg;
-
-    let facts={}, life={};
-    if (rg.iso2){
-      facts = await getJSON(`${API}/facts?iso2=${rg.iso2}`).catch(()=>({}));
-      life  = { life:facts.life??"—", male:facts.male??"—", female:facts.female??"—", median:facts.median??"—" };
-    }
-
-    setHeader(rg);
-    setFlag(rg);
-
-    const key = rg.ocean ? ("ocean:"+rg.ocean) : ("land:"+ (rg.iso2||""));
-    if (key !== lastKey){
-      lastKey = key;
-      slides = buildSlides(rg, facts, life);
-      startSlider();
-    } else {
-      slides[ (slideIdx+slides.length-1)%slides.length ].fn(); // keep clock/speed fresh
-    }
-  }catch(e){
-    titleEl.textContent = "Network error – retrying…";
-  }
+    const r = await fetch(url, {signal: ac.signal, headers: {'user-agent':'iss-overlay'}});
+    if(!r.ok) throw new Error(r.status);
+    return await r.json();
+  }finally{ clearTimeout(t) }
 }
 
-/* live UTC tick */
-setInterval(()=>{
-  if (!gridEl.children.length) return;
-  for (let i=0;i<gridEl.children.length;i+=2){
-    if (gridEl.children[i].textContent.startsWith("UTC")){
-      gridEl.children[i+1].textContent = utcNow()+" UTC";
-      break;
-    }
-  }
-},1000);
+async function fetchData(){
+  // 1) ISS
+  const iss = await getJSON(`${API}/iss`);
+  const lat = iss.lat, lon = iss.lon;
+  // 2) Reverse geocode
+  const rg  = await getJSON(`${API}/rg?lat=${lat}&lon=${lon}`);
 
-/* poll so location updates without reload */
-refresh();
-setInterval(refresh, 10000);
+  // place title (centered)
+  const title = rg.ocean ? rg.ocean : (rg.region ? `${rg.region}, ${rg.country}` : rg.country);
+  els.place.textContent = title || "—";
+
+  // image
+  setFlagOrPhoto({iso2: rg.iso2 || null, country: rg.country, ocean: rg.ocean || null});
+
+  // stat lines
+  const now = new Date();
+  els.utc.textContent   = now.toISOString().slice(11,19) + " UTC";
+  els.date.textContent  = now.toISOString().slice(0,10);
+  els.speed.textContent = fmt(iss.speed_kps, "km/s");
+  els.alt.textContent   = fmt(iss.alt_km,  "km");
+}
+
+// initial + refresh
+fetchData().catch(console.error);
+setInterval(()=>fetchData().catch(console.error), 12000); // refresh every 12s
 </script>
 </body>
 </html>
