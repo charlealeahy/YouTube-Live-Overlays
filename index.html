@@ -5,20 +5,17 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>ISS Info Widget</title>
 
+<!-- silence favicon 404 -->
+<link rel="icon" href='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg"/>'>
+
 <!-- Sunrise/Sunset math -->
 <script src="https://unpkg.com/suncalc@1.9.0/suncalc.js"></script>
 
 <style>
   :root{
-    --w: 520px;
-    --h: 280px;
-    --bg:#0e0f12;
-    --panel:#171a1f;
-    --muted:#9aa4b2;
-    --text:#e7edf5;
-    --card:#101319;
+    --w: 520px; --h: 280px;
+    --bg:#0e0f12; --panel:#171a1f; --muted:#9aa4b2; --text:#e7edf5; --card:#101319;
   }
-
   html,body{height:100%;margin:0;background:transparent}
   *{box-sizing:border-box;font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
 
@@ -30,7 +27,7 @@
     box-shadow:0 10px 28px rgba(0,0,0,.48); overflow:hidden;
   }
 
-  /* Title (single line, auto shrink + ellipsis) */
+  /* Title (single line, auto-shrink + ellipsis) */
   .location{
     display:grid; place-items:center;
     background:linear-gradient(180deg,#12151c,#0e1116);
@@ -59,15 +56,14 @@
     border-radius:8px; border:1px solid #2a3140; background:#0b0d10;
   }
   .live{
-    height:26px;
-    background:#b80e0e; color:#fff;
+    height:26px; background:#b80e0e; color:#fff;
     display:flex; align-items:center; justify-content:center;
     font-weight:900; letter-spacing:.6px; text-transform:uppercase; font-size:13px;
   }
 
   .info{
     background:var(--panel); border:1px solid #222937; border-radius:12px;
-    padding:12px 14px; display:grid; grid-template-rows:auto 1fr; gap:8px;
+    padding:12px 14px; display:grid; grid-template-rows:auto 1fr auto; gap:8px;
   }
   .rowTitle{font-weight:900; color:#cfd7e3; font-size:18px}
   .grid{display:grid; grid-template-columns:1fr 1fr; gap:8px 18px; font-size:14px; line-height:1.25; align-content:start}
@@ -75,6 +71,7 @@
   .mono{font-variant-numeric:tabular-nums; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
   .span2{grid-column:1/-1}
   .tappable{cursor:pointer; user-select:none}
+  #dbg{opacity:.65; font-size:11px; color:#a8b0bd}
 </style>
 </head>
 
@@ -111,13 +108,16 @@
         <div><span class="muted">Forest:</span>         <span class="mono" id="forest">—</span></div>
         <div><span class="muted">Pasture:</span>        <span class="mono" id="pasture">—</span></div>
       </div>
+
+      <div id="dbg"></div>
     </div>
   </div>
 </div>
 
 <script>
 /* ========================= CONFIG ========================= */
-const WORKER_BASE = "https://iss-live.charlesleahy.workers.dev"; // your Worker URL
+/* Your Cloudflare Worker. If it fails, the code auto-falls back to public APIs. */
+const WORKER_BASE = "https://iss-live.charlesleahy.workers.dev";
 const REFRESH_MS   = 6000;
 const PANEL_SWAP_MS= 12000;
 /* ========================================================== */
@@ -135,17 +135,100 @@ function setTitle(text){
   if(n>44) box.classList.add('tiny');
 }
 
-async function j(url, timeout=8000){
+/* Tiny fetch helper with timeout */
+async function getText(url, timeout=8000){
   const ac = new AbortController(); const t = setTimeout(()=>ac.abort(), timeout);
-  const r = await fetch(url, {signal:ac.signal, cache:'no-store'}).catch(()=>null);
-  clearTimeout(t); if(!r || !r.ok) throw 0; return r.json();
+  try{
+    const r = await fetch(url, {signal:ac.signal, cache:'no-store'});
+    if(!r.ok) throw new Error(r.status);
+    return await r.text();
+  } finally { clearTimeout(t); }
 }
+async function getJSON(url, timeout=8000){ return JSON.parse(await getText(url, timeout)); }
 
 /* Ocean placeholder flag so the slot never looks broken */
 const OCEAN_SVG =
   'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="96" height="64"><rect width="100%" height="100%" fill="%230b1a2a"/><text x="50%" y="55%" font-size="16" fill="white" text-anchor="middle" font-family="Segoe UI, Arial">🌊</text></svg>';
 
-/* Next sunrise/sunset at position */
+/* ---- Position providers (Worker → public fallbacks) ---- */
+async function getISS(){
+  // 0) Worker
+  try { const j = await getJSON(`${WORKER_BASE}/iss`, 7000);
+        return {...j, src:`worker:${j.src||'ok'}`}; } catch{}
+
+  // 1) WhereTheISS (direct)
+  try { const j = await getJSON("https://api.wheretheiss.at/v1/satellites/25544", 7000);
+        return { lat:+j.latitude, lon:+j.longitude, alt_km:+j.altitude, speed_kps:+j.velocity/3600, src:"wheretheiss" }; } catch{}
+
+  // 1b) WhereTheISS via Jina proxy (text endpoint)
+  try { const j = JSON.parse(await getText("https://r.jina.ai/http://api.wheretheiss.at/v1/satellites/25544", 7000));
+        return { lat:+j.latitude, lon:+j.longitude, alt_km:+j.altitude, speed_kps:+j.velocity/3600, src:"wheretheiss-jina" }; } catch{}
+
+  // 1c) WhereTheISS via isomorphic-git CORS proxy
+  try { const j = await getJSON("https://cors.isomorphic-git.org/https://api.wheretheiss.at/v1/satellites/25544", 7000);
+        return { lat:+j.latitude, lon:+j.longitude, alt_km:+j.altitude, speed_kps:+j.velocity/3600, src:"wheretheiss-cors" }; } catch{}
+
+  // 2) Open-Notify ISS-now (coords only)
+  try { const j = await getJSON("https://api.open-notify.org/iss-now.json", 7000);
+        const lat=+j?.iss_position?.latitude, lon=+j?.iss_position?.longitude;
+        if(Number.isFinite(lat)&&Number.isFinite(lon)) return { lat, lon, alt_km:420, speed_kps:7.66, src:"open-notify" }; } catch{}
+
+  // 2b) via proxy
+  try { const j = await getJSON("https://cors.isomorphic-git.org/https://api.open-notify.org/iss-now.json", 7000);
+        const lat=+j?.iss_position?.latitude, lon=+j?.iss_position?.longitude;
+        if(Number.isFinite(lat)&&Number.isFinite(lon)) return { lat, lon, alt_km:420, speed_kps:7.66, src:"open-notify-cors" }; } catch{}
+
+  // 3) Last resort: crude approximation (UI stays alive)
+  const a = approxISS();
+  return {lat:a.lat, lon:a.lon, alt_km:a.alt_km, speed_kps:a.speed_kps, src:"approx"};
+}
+
+/* Very simple kinematic approximation */
+function approxISS(){
+  const now = Date.now()/1000;
+  const period = 92.68*60;                    // seconds
+  const inc = 51.64 * Math.PI/180;
+  const phi = (now % period)/period * 2*Math.PI;
+  const lat = Math.asin(Math.sin(inc)*Math.sin(phi)) * 180/Math.PI;
+  const lon = ((phi*180/Math.PI)*1.13 % 360) - 180; // crude drift
+  return { lat, lon, alt_km:420, speed_kps:7.66 };
+}
+
+/* Reverse geocode (Worker → public) */
+async function reverseGeocode(lat,lon){
+  try { const j = await getJSON(`${WORKER_BASE}/rg?lat=${lat}&lon=${lon}`, 7000); return j; } catch{}
+  try { const j = await getJSON(`https://geocoding-api.open-meteo.com/v1/reverse?latitude=${lat}&longitude=${lon}&language=en`,7000);
+        const r=j?.results?.[0]; if(r) return {country:r.country||null, iso2:(r.country_code||'').toUpperCase()||null, region:r.admin1||r.admin2||r.name||null, ocean:null}; } catch{}
+  try { const j = await getJSON(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`,7000);
+        const inf=j?.localityInfo?.informative||[]; const oc=inf.find(x=>/ocean/i.test(x.description||x.name||'')); 
+        return {country:j.countryName||null, iso2:j.countryCode||null, region:j.principalSubdivision||j.locality||null, ocean: oc?(oc.name||oc.description):null}; } catch{}
+  try { const j = await getJSON(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`,7000);
+        const a=j.address||{}; return {country:a.country||null, iso2:(a.country_code||'').toUpperCase()||null, region:a.state||a.county||a.region||null, ocean:a.ocean||a.water||null}; } catch{}
+  return {country:null, iso2:null, region:null, ocean:null};
+}
+
+/* Country facts (public APIs) */
+async function factsFor(iso2){
+  const out = { leT:null, leM:null, leF:null, landKm2:null, forestKm2:null, forestPct:null, pastureKm2:null, pasturePct:null, medianAge:null };
+  try{ const rc = await getJSON(`https://restcountries.com/v3.1/alpha/${iso2}`,7000);
+       const r = Array.isArray(rc)?rc[0]:rc; out.landKm2 = r?.area||null; }catch{}
+  async function wb(code){
+    try{
+      const j = await getJSON(`https://api.worldbank.org/v2/country/${iso2}/indicator/${code}?format=json&per_page=70`,8000);
+      const s=j?.[1]||[]; const v=s.find(x=>x.value!==null); return (v&&typeof v.value==='number')?v.value:null;
+    }catch{return null;}
+  }
+  out.leT = await wb('SP.DYN.LE00.IN');
+  out.leM = await wb('SP.DYN.LE00.MA.IN');
+  out.leF = await wb('SP.DYN.LE00.FE.IN');
+  out.forestKm2  = await wb('AG.LND.FRST.K2');
+  out.forestPct  = await wb('AG.LND.FRST.ZS');
+  out.pastureKm2 = await wb('AG.LND.PAST.K2');
+  out.pasturePct = await wb('AG.LND.PAST.ZS');
+  return out;
+}
+
+/* Sun helpers */
 function nextSun(lat,lon){
   const now=new Date(); const L=[];
   for(let d=0; d<2; d++){
@@ -155,13 +238,13 @@ function nextSun(lat,lon){
   const nx=L.filter(x=>x.t && x.t>now).sort((a,b)=>a.t-b.t)[0];
   if(!nx) return null;
   const mins=Math.round((nx.t-now)/60000);
-  const labelMins = mins<=0? 'now' : (mins<60? `${mins} min` : `${Math.floor(mins/60)} h ${mins%60} m`);
-  return {label:`Next: ${nx.n} in ${labelMins}`, at:nx.t};
+  const label = mins<=0? 'now' : (mins<60? `${mins} min` : `${Math.floor(mins/60)} h ${mins%60} m`);
+  return {label:`Next: ${nx.n} in ${label}`, at:nx.t};
 }
 const toUTCd=d=>`${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`;
 const toUTCt=d=>`${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())} UTC`;
 
-/* Panel swap (click or every few seconds) */
+/* Panel swap */
 let panel=0;
 function swap(){ panel=(panel+1)%2; el('panelNow').style.display=panel?'none':'grid'; el('panelFacts').style.display=panel?'grid':'none'; }
 el('info').addEventListener('click',swap);
@@ -170,20 +253,19 @@ setInterval(swap,PANEL_SWAP_MS);
 /* Main loop */
 async function tick(){
   try{
-    // Position (from your Worker)
-    const iss = await j(`${WORKER_BASE}/iss`);
-    if(!(Number.isFinite(iss.lat) && Number.isFinite(iss.lon))) return;
+    const pos = await getISS();
+    el('dbg').textContent = `data source: ${pos.src}`;
 
-    // Now panel
-    el('coords').textContent = `${iss.lat.toFixed(2)}° ${iss.lat>=0?'N':'S'}, ${iss.lon.toFixed(2)}° ${iss.lon>=0?'E':'W'}`;
-    if(iss.speed_kps!=null) el('speed').textContent = `${fmt3.format(iss.speed_kps)} km/s`;
-    if(iss.alt_km!=null)    el('alt').textContent   = `${fmt2.format(iss.alt_km)} km`;
+    if(!(Number.isFinite(pos.lat) && Number.isFinite(pos.lon))) return;
 
-    const sun = nextSun(iss.lat, iss.lon);
+    el('coords').textContent = `${pos.lat.toFixed(2)}° ${pos.lat>=0?'N':'S'}, ${pos.lon.toFixed(2)}° ${pos.lon>=0?'E':'W'}`;
+    if(pos.speed_kps!=null) el('speed').textContent = `${fmt3.format(pos.speed_kps)} km/s`;
+    if(pos.alt_km!=null)    el('alt').textContent   = `${fmt2.format(pos.alt_km)} km`;
+
+    const sun = nextSun(pos.lat, pos.lon);
     if(sun){ el('panelTitle').textContent = sun.label; el('utc').textContent = toUTCt(sun.at); el('date').textContent = toUTCd(sun.at); }
 
-    // Reverse geocode (Worker)
-    const place = await j(`${WORKER_BASE}/rg?lat=${iss.lat}&lon=${iss.lon}`);
+    const place = await reverseGeocode(pos.lat, pos.lon);
     let title='—';
     if(!place.country && place.ocean) title = place.ocean || 'Open Ocean';
     else if(place.region && place.country) title = `${place.region}, ${place.country}`;
@@ -199,54 +281,28 @@ async function tick(){
     }
     flagImg.style.opacity = '1';
 
-    // Country facts (from public sources – no keys)
+    // Facts
     if(place.iso2){
-      try{
-        // Area from REST Countries
-        const rc = await j(`https://restcountries.com/v3.1/alpha/${place.iso2}`);
-        const r  = Array.isArray(rc)?rc[0]:rc;
-        const area = r?.area||null;
-        el('landArea').textContent = area? `${Math.round(area).toLocaleString('en-US')} km²` : '—';
-      }catch{}
-
-      // World Bank indicators
-      const WB = async code => {
-        try{
-          const q = await j(`https://api.worldbank.org/v2/country/${place.iso2}/indicator/${code}?format=json&per_page=70`);
-          const s = q?.[1] || []; const v = s.find(x=>x.value!==null);
-          return (v && typeof v.value==='number')? v.value : null;
-        }catch{return null;}
-      };
-      const leT = await WB('SP.DYN.LE00.IN');
-      const leM = await WB('SP.DYN.LE00.MA.IN');
-      const leF = await WB('SP.DYN.LE00.FE.IN');
-      const frK = await WB('AG.LND.FRST.K2');
-      const frP = await WB('AG.LND.FRST.ZS');
-      const paK = await WB('AG.LND.PAST.K2');
-      const paP = await WB('AG.LND.PAST.ZS');
-
+      const f = await factsFor(place.iso2);
       const yrs = v => v==null? '—' : `${fmt2.format(v)} yrs`;
-      el('leTotal').textContent = yrs(leT);
-      el('leMale').textContent  = yrs(leM);
-      el('leFemale').textContent= yrs(leF);
-      el('medianAge').textContent = '—'; // no reliable free CORS source
-
-      el('forest').textContent  =
-        (frK==null && frP==null) ? '—'
-        : `${frK!=null? Math.round(frK).toLocaleString('en-US')+' km²':''}${frP!=null? ` (${fmt2.format(frP)}%)`:''}`;
-
-      el('pasture').textContent =
-        (paK==null && paP==null) ? '—'
-        : `${paK!=null? Math.round(paK).toLocaleString('en-US')+' km²':''}${paP!=null? ` (${fmt2.format(paP)}%)`:''}`;
+      el('leTotal').textContent  = yrs(f.leT);
+      el('leMale').textContent   = yrs(f.leM);
+      el('leFemale').textContent = yrs(f.leF);
+      el('medianAge').textContent= '—'; // no reliable free CORS src
+      el('landArea').textContent = f.landKm2!=null? `${Math.round(f.landKm2).toLocaleString('en-US')} km²` : '—';
+      el('forest').textContent   = (f.forestKm2==null && f.forestPct==null)? '—'
+                                  : `${f.forestKm2!=null? Math.round(f.forestKm2).toLocaleString('en-US')+' km²':''}${f.forestPct!=null? ` (${fmt2.format(f.forestPct)}%)`:''}`;
+      el('pasture').textContent  = (f.pastureKm2==null && f.pasturePct==null)? '—'
+                                  : `${f.pastureKm2!=null? Math.round(f.pastureKm2).toLocaleString('en-US')+' km²':''}${f.pasturePct!=null? ` (${fmt2.format(f.pasturePct)}%)`:''}`;
     } else {
-      // Over ocean – blank the country facts panel
-      ['leTotal','leMale','leFemale','medianAge','landArea','forest','pasture']
-        .forEach(id => el(id).textContent='—');
+      ['leTotal','leMale','leFemale','medianAge','landArea','forest','pasture'].forEach(id=>el(id).textContent='—');
     }
-  }catch(_e){ /* keep last good values on screen */ }
+  }catch(e){
+    // keep last good values; nothing else to do
+  }
 }
 
-/* Live UTC clock (keeps UTC/time populated between network updates) */
+/* Live UTC clock */
 setInterval(()=>{
   const n=new Date();
   el('date').textContent = `${n.getUTCFullYear()}-${pad(n.getUTCMonth()+1)}-${pad(n.getUTCDate())}`;
