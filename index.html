@@ -4,31 +4,34 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>ISS Info Widget</title>
-<!-- SunCalc for sunrise/sunset -->
 <script src="https://unpkg.com/suncalc@1.9.0/suncalc.js"></script>
-<!-- satellite.js for SGP4 (local orbit fallback) -->
-<script src="https://cdn.jsdelivr.net/npm/satellite.js@5.0.1/dist/satellite.min.js"></script>
 <style>
   :root{ --w:440px; --h:240px; --bg:#0e0f12; --panel:#171a1f; --muted:#9aa4b2; --text:#e7edf5; --card:#101319; }
   html,body{height:100%;margin:0;background:transparent}
   *{box-sizing:border-box;font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
   .widget{width:var(--w);height:var(--h);display:grid;grid-template-rows:1fr 84px;gap:8px;padding:8px;background:var(--bg);color:var(--text);border:1px solid #262a34;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.45);overflow:hidden}
+
   /* Two-line heading */
   .location{display:grid;place-items:center;grid-template-rows:auto auto;row-gap:2px;background:linear-gradient(180deg,#12151c,#0e1116);border-radius:10px;border:1px solid #1e2530;padding:10px}
   .locLine{font-weight:700;letter-spacing:.3px;text-align:center;line-height:1.05}
   .locTop{font-size:30px}.locBottom{font-size:26px;opacity:.95}
   .location.small .locTop{font-size:26px}.location.small .locBottom{font-size:22px}
   .location.tiny .locTop{font-size:22px}.location.tiny .locBottom{font-size:19px}
+
   .bottom{display:grid;grid-template-columns:112px 1fr;gap:8px}
   .flagCard{background:var(--card);border:1px solid #1f2430;border-radius:10px;display:grid;grid-template-rows:1fr 24px;overflow:hidden}
   .flagWrap{display:flex;align-items:center;justify-content:center;padding:8px;background:radial-gradient(120% 140% at 50% 0%,#1a2230 0%,#0f141d 60%,#0b0e13 100%)}
   .flag{width:100%;height:100%;max-width:88px;max-height:60px;object-fit:cover;border-radius:6px;border:1px solid #2a3140;background:#0b0d10}
   .live{background:#c61717;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;letter-spacing:.6px;text-transform:uppercase;font-size:12px}
+
   .info{background:var(--panel);border:1px solid #222937;border-radius:10px;padding:8px 10px;display:grid;grid-template-rows:auto 1fr;gap:6px}
   .rowTitle{font-weight:800;color:#cfd7e3;font-size:16px}
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 14px;font-size:13px;line-height:1.3;align-content:start}
   .muted{color:var(--muted)} .mono{font-variant-numeric:tabular-nums;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
   .span2{grid-column:1 / -1;text-align:center}
+
+  /* hidden debug line – set display:block to see provider status */
+  #dbg{display:none;margin-top:2px;font-size:10px;color:#9aa4b2;opacity:.8}
 </style>
 </head>
 <body>
@@ -55,20 +58,27 @@
         <div><span class="muted">Poverty:</span> <span class="mono" id="poverty">—</span></div>
         <div class="span2"><span class="muted">Capital:</span> <span class="mono" id="capital">—</span></div>
       </div>
+      <div id="dbg">debug</div>
     </div>
   </div>
 </div>
 
 <script>
-/* ===== settings ===== */
+/* =================== CONFIG =================== */
+/* Optional keys (leave empty to use free, keyless fallbacks) */
+const N2YO_API_KEY   = "";   // https://www.n2yo.com/api/
+const GEOAPIFY_KEY   = "";   // https://www.geoapify.com/
+const DEBUG = false;         // set true to show provider used in bottom-right
+/* ============================================== */
+
 const REFRESH_MS = 5000;
 const TEXT1 = 26, TEXT2 = 40;
 
-/* ===== helpers ===== */
 const el = id => document.getElementById(id);
 const fmt  = new Intl.NumberFormat('en-US',{maximumFractionDigits:2});
 const fmt3 = new Intl.NumberFormat('en-US',{maximumFractionDigits:3});
 const pct  = x => (x==null||isNaN(x)?'—':(Math.round(x*10)/10).toFixed(1)+'%');
+const dbg  = msg => { if(DEBUG){ const n=el('dbg'); n.style.display='block'; n.textContent=String(msg); } };
 
 function fitTwoLine(top,bottom){
   const box = el('loc'); box.classList.remove('small','tiny');
@@ -86,134 +96,130 @@ async function getText(url,{timeout=7000,retries=1}={}) {
       const r=await fetch(url,{signal:ctrl.signal,cache:'no-store'}); clearTimeout(t);
       if(r.ok) return await r.text();
     }catch(e){}
-    await new Promise(r=>setTimeout(r,400+a*300));
+    await new Promise(r=>setTimeout(r,350+a*300));
   }
   throw new Error('text fetch failed '+url);
 }
 async function getJSON(url,opts){ return JSON.parse(await getText(url,opts)); }
 
-/* ---------- ISS position with multiple fallbacks ---------- */
+/* ---------- ISS position: robust chain (N2YO -> WhereTheISS -> Open-Notify) ---------- */
 async function getISS(){
   const ts = Date.now();
-  // 1) WhereTheISS
-  try{ return await getJSON(`https://api.wheretheiss.at/v1/satellites/25544?ts=${ts}`, {timeout:6000,retries:1}); }catch(e){}
-  // 2) Open-Notify (via simple CORS proxy)
+
+  // 1) N2YO (if key present)
+  if(N2YO_API_KEY){
+    try{
+      // N2YO returns lat/lon/alt/speed in /positions call (we sample 1 point)
+      const j = await getJSON(`https://api.n2yo.com/rest/v1/satellite/positions/25544/0/0/0/1/&apiKey=${encodeURIComponent(N2YO_API_KEY)}&t=${ts}`, {timeout:6000});
+      const p = j?.positions?.[0];
+      if(p){ dbg("N2YO"); return {latitude:p.latitude, longitude:p.longitude, altitude:p.sataltitude, velocity:p.satvelocity}; }
+    }catch(e){}
+  }
+
+  // 2) WhereTheISS (direct)
+  try{ dbg("WhereTheISS"); return await getJSON(`https://api.wheretheiss.at/v1/satellites/25544?ts=${ts}`, {timeout:6000,retries:1}); }catch(e){}
+
+  // 3) WhereTheISS via proxies
+  try{ dbg("WhereTheISS (proxy A)"); return await getJSON(`https://cors.isomorphic-git.org/https://api.wheretheiss.at/v1/satellites/25544?ts=${ts}`, {timeout:6000}); }catch(e){}
+  try{ dbg("WhereTheISS (proxy B)"); return JSON.parse(await getText(`https://r.jina.ai/http://api.wheretheiss.at/v1/satellites/25544`)); }catch(e){}
+
+  // 4) Open-Notify (via proxy) – coords only
   try{
-    const on = await getJSON(`https://cors.isomorphic-git.org/https://api.open-notify.org/iss-now.json`, {timeout:6000});
+    dbg("Open-Notify");
+    const on = await getJSON(`https://thingproxy.freeboard.io/fetch/https://api.open-notify.org/iss-now.json`, {timeout:6000});
     return {
       latitude:  parseFloat(on?.iss_position?.latitude),
       longitude: parseFloat(on?.iss_position?.longitude),
-      altitude:  undefined,                // will fill from SGP4 fallback
+      altitude:  undefined,
       velocity:  undefined
     };
   }catch(e){}
-  // 3) Local SGP4 using fresh TLE via text proxy (always works)
-  try{
-    const tleTxt = await getText('https://r.jina.ai/https://celestrak.org/NORAD/elements/stations.txt', {timeout:7000});
-    const lines = tleTxt.split(/\r?\n/);
-    const idx = lines.findIndex(l=>/^ISS \(ZARYA\)/i.test(l));
-    const tle1 = lines[idx+1]?.trim();
-    const tle2 = lines[idx+2]?.trim();
-    if(tle1 && tle2 && window.satellite){
-      const satrec = satellite.twoline2satrec(tle1, tle2);
-      const now = new Date();
-      const pv = satellite.propagate(satrec, now);
-      const gmst = satellite.gstime(now);
-      const gd = satellite.eciToGeodetic(pv.position, gmst);
-      const lat = satellite.degreesLat(gd.latitude);
-      const lon = satellite.degreesLong(gd.longitude);
-      const altKm = gd.height; // km
-      // speed magnitude from km/s vector
-      const v = pv.velocity;
-      const speedKps = Math.sqrt(v.x*v.x + v.y*v.y + v.z*v.z); // km/s
-      return { latitude: lat, longitude: lon, altitude: altKm, velocity: speedKps*3600 /* to km/h to match primary */ };
-    }
-  }catch(e){}
-  throw new Error('All ISS sources failed');
+
+  throw new Error('All ISS providers failed');
 }
 
-/* ---------- Reverse geocode (reliable chain, no keys) ---------- */
+/* ---------- Reverse geocode: Geoapify (key) -> OpenMeteo -> BDC -> maps.co -> OSM ---------- */
 async function reverseGeocode(lat, lon){
-  // Open-Meteo (fast, CORS OK)
+  if(GEOAPIFY_KEY){
+    try{
+      const j = await getJSON(`https://api.geoapify.com/v1/geocode/reverse?lat=${lat}&lon=${lon}&format=json&apiKey=${encodeURIComponent(GEOAPIFY_KEY)}`, {timeout:7000});
+      const r = j?.results?.[0];
+      if(r){ return {countryName:r.country||null, iso2:(r.country_code||'').toUpperCase()||null, region:r.state||r.county||r.city||r.name||null, oceanName:null}; }
+    }catch(e){}
+  }
   try{
-    const j = await getJSON(`https://geocoding-api.open-meteo.com/v1/reverse?latitude=${lat}&longitude=${lon}&language=en`);
+    const j = await getJSON(`https://geocoding-api.open-meteo.com/v1/reverse?latitude=${lat}&longitude=${lon}&language=en`, {timeout:7000});
     const r = j?.results?.[0];
     if(r){ return {countryName:r.country||null, iso2:(r.country_code||'').toUpperCase()||null, region:r.admin1||r.admin2||r.name||null, oceanName:null}; }
   }catch(e){}
-  // BigDataCloud (ocean detection)
   try{
-    const j = await getJSON(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`);
+    const j = await getJSON(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`, {timeout:7000});
     let ocean=null; const inf=j?.localityInfo?.informative||[]; const o=inf.find(x=>/ocean/i.test(x.description||x.name||'')); if(o) ocean=o.name||o.description;
     if(j.countryName || ocean){ return {countryName:j.countryName||null, iso2:j.countryCode||null, region:j.principalSubdivision||j.locality||null, oceanName:ocean}; }
   }catch(e){}
-  // maps.co (Nominatim mirror)
   try{
-    const j = await getJSON(`https://geocode.maps.co/reverse?lat=${lat}&lon=${lon}`); const a=j.address||{};
+    const j = await getJSON(`https://geocode.maps.co/reverse?lat=${lat}&lon=${lon}`, {timeout:7000});
+    const a = j.address || {};
     return {countryName:a.country||null, iso2:(a.country_code||'').toUpperCase()||null, region:a.state||a.county||a.region||null, oceanName:a.ocean||a.water||null};
   }catch(e){}
-  // OSM direct
   try{
-    const j = await getJSON(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`); const a=j.address||{};
+    const j = await getJSON(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`, {timeout:7000});
+    const a = j.address || {};
     return {countryName:a.country||null, iso2:(a.country_code||'').toUpperCase()||null, region:a.state||a.county||a.region||null, oceanName:a.ocean||a.water||null};
   }catch(e){}
   return {countryName:null, iso2:null, region:null, oceanName:null};
 }
 
-/* Next sunrise/sunset across today+tomorrow */
 function nextSunEvent(lat, lon, now){
   const evts=[]; for(let d=0; d<2; d++){ const day=new Date(now.getTime()+d*86400000); const t=SunCalc.getTimes(day,lat,lon); evts.push({name:'Sunrise',t:t.sunrise},{name:'Sunset',t:t.sunset}); }
   return evts.filter(e=>e.t && e.t>now).sort((a,b)=>a.t-b.t)[0] || null;
 }
 
-/* Persist last good state so UI never blanks */
+/* Persist last good state */
 let last = {lat:null, lon:null, altKm:null, speedKps:null, iso2:null, country:null, region:null};
 
 async function tick(){
   try{
-    // 1) ISS position (with fallbacks including SGP4)
     const iss = await getISS();
     const lat = Number(iss.latitude), lon = Number(iss.longitude);
-    const altKm = Number(iss.altitude), speedKps = Number(iss.velocity)/3600;
+    const altKm = iss.altitude!=null ? Number(iss.altitude) : last.altKm;
+    const speedKps = iss.velocity!=null ? Number(iss.velocity)/3600 : last.speedKps;
 
-    if(!Number.isNaN(lat) && !Number.isNaN(lon)){ last.lat=lat; last.lon=lon; }
-    if(!Number.isNaN(altKm)) { last.altKm=altKm; }
-    if(!Number.isNaN(speedKps)) { last.speedKps=speedKps; }
+    if(Number.isFinite(lat) && Number.isFinite(lon)){ last.lat=lat; last.lon=lon; }
+    if(Number.isFinite(altKm)){ last.altKm=altKm; }
+    if(Number.isFinite(speedKps)){ last.speedKps=speedKps; }
 
     const useLat=last.lat, useLon=last.lon;
 
-    // 2) Reverse geocode
+    // Geocode (if we have coords)
     let place = {countryName:last.country, iso2:last.iso2, region:last.region, oceanName:null};
-    if(useLat!=null && useLon!=null){
+    if(Number.isFinite(useLat) && Number.isFinite(useLon)){
       place = await reverseGeocode(useLat, useLon);
       last.country=place.countryName; last.iso2=place.iso2; last.region=place.region;
     }
 
-    // 3) Two-line heading
     const overOcean = !place.countryName && !!place.oceanName;
     if(overOcean){ fitTwoLine(place.oceanName || 'Open Ocean', ''); }
     else if(place.region && place.countryName){ fitTwoLine(place.region, place.countryName); }
     else { fitTwoLine(place.countryName || '—', ''); }
 
-    // 4) Flag
     const flagEl = el('flag');
     if(place.iso2){ flagEl.src=`https://flagcdn.com/w80/${place.iso2.toLowerCase()}.png`; flagEl.style.opacity='1'; }
     else { flagEl.removeAttribute('src'); flagEl.style.opacity='0.25'; }
 
-    // 5) Next sun event
-    const now=new Date(); const next=(useLat!=null&&useLon!=null)? nextSunEvent(useLat,useLon,now):null;
+    const now=new Date(); const next=(Number.isFinite(useLat)&&Number.isFinite(useLon))? nextSunEvent(useLat,useLon,now):null;
     const pad=n=>String(n).padStart(2,'0'); const toUTCDate=d=>`${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`; const toUTCTime=d=>`${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
     if(next){ el('eventTitle').textContent=`Next: ${next.name}`; el('utc').textContent=`${toUTCTime(next.t)} UTC`; el('date').textContent=toUTCDate(next.t); }
     else { el('eventTitle').textContent='Next: —'; el('utc').textContent=`${toUTCTime(now)} UTC`; el('date').textContent=toUTCDate(now); }
 
-    // 6) Numbers
     el('speed').textContent = (last.speedKps!=null? fmt3.format(last.speedKps)+' km/s' : '—');
     el('alt').textContent   = (last.altKm!=null? fmt.format(last.altKm)+' km' : '—');
 
-    // 7) Country facts
+    // Country facts
     let capital='—', density='—', population=null, area=null;
     if(place.iso2){
       try{
-        const rest = await getJSON(`https://restcountries.com/v3.1/alpha/${place.iso2}`);
+        const rest = await getJSON(`https://restcountries.com/v3.1/alpha/${place.iso2}`, {timeout:7000});
         const r = Array.isArray(rest)?rest[0]:rest;
         capital = (r && r.capital && r.capital[0]) ? r.capital[0] : '—';
         population = r?.population || null; area = r?.area || null;
@@ -223,18 +229,21 @@ async function tick(){
     el('capital').textContent = capital;
     el('density').textContent = density;
 
-    // 8) Poverty
+    // Poverty
     let pov='—';
     if(place.iso2){
       try{
-        const wb = await getJSON(`https://api.worldbank.org/v2/country/${place.iso2}/indicator/SI.POV.DDAY?format=json&per_page=60`);
+        const wb = await getJSON(`https://api.worldbank.org/v2/country/${place.iso2}/indicator/SI.POV.DDAY?format=json&per_page=60`, {timeout:7000});
         const series = (wb && wb[1]) ? wb[1] : []; const latest = series.find(x=>x.value!==null);
         if(latest && typeof latest.value === 'number'){ pov = pct(latest.value); }
       }catch(e){}
     }
     el('poverty').textContent = pov;
 
-  }catch(err){ console.error(err); }
+  }catch(err){
+    dbg(err.message||String(err));
+    // leave last-good info on screen
+  }
 }
 
 /* Live UTC labels */
