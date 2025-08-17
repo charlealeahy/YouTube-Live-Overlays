@@ -1,375 +1,248 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>ISS Info Widget</title>
-
-<!-- Fonts -->
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-
 <style>
-:root{
-  --w: 560px;                 /* widget width */
-  --pad: 12px;                /* panel padding */
-  --bg: #0e1116;              /* page bg */
-  --panel: #121a22;           /* panel bg */
-  --panel2: #0c141c;          /* outer shell bg */
-  --muted: #8aa4bd;
-  --text: #e9f2ff;
-  --acc: #3aa0ff;
-  --shadow: 0 24px 48px rgba(0,0,0,.35);
-  --radius: 16px;
-
-  /* left column sizing (flag + LIVE); this drives the total row height */
-  --flagH: 76px;
-  --flagW: 114px;
-  --liveH: 36px;
-  --colGap: 12px;
-  --rowH: calc(var(--flagH) + var(--liveH) + var(--colGap) + var(--pad)*2);
-}
-
-/* Page */
-html,body{
-  height:100%;
-  margin:0;
-  background:#0a0f14; /* subtle darker than panel */
-  background:
-    radial-gradient(1200px 800px at -200px -200px, #071019 0%, #050a11 35%, #04070c 55%, #02060b 80%, #010409 100%),
-    var(--bg);
-  font-family: Inter, system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-  color:var(--text);
-}
-
-/* Widget shell */
-.widget{
-  width:var(--w);
-  margin:28px;
-  padding:14px;
-  background:var(--panel2);
-  border-radius: calc(var(--radius) + 4px);
-  box-shadow: var(--shadow);
-}
-
-/* Title bar */
-.title{
-  height:56px;
-  display:flex;
-  align-items:center;
-  justify-content:center;   /* centered as requested */
-  background:
-    linear-gradient(180deg, #0f1b26, #0d131a);
-  border-radius: var(--radius);
-  font-weight:800;
-  font-size:26px;
-  letter-spacing:.3px;
-  text-shadow: 0 1px 0 #000;
-  margin-bottom:12px;
-}
-
-/* Main row: left badge + right info (their heights are locked together) */
-.row{
-  display:grid;
-  grid-template-columns: minmax(120px, 130px) 1fr;
-  column-gap:12px;
-  align-items:start;
-}
-
-/* Left column (flag + LIVE) */
-.badge{
-  height: var(--rowH);                /* <-- fixes the total row height anchor */
-  background:var(--panel);
-  border-radius: var(--radius);
-  padding: var(--pad);
-  display:grid;
-  grid-template-rows: var(--flagH) var(--liveH);
-  row-gap: var(--colGap);
-  align-items:start;
-}
-
-/* Flag image (no border) */
-.flag{
-  width:var(--flagW);
-  height:var(--flagH);
-  object-fit: cover;                  /* neat edges */
-  border-radius: 10px;                /* softer */
-  display:block;
-}
-
-/* LIVE badge */
-.live{
-  height:var(--liveH);
-  display:inline-grid;
-  place-items:center;
-  padding: 0 18px;
-  border-radius: 10px;
-  background: linear-gradient(0deg, #b51316, #e21f25);
-  color:#fff;
-  font-weight:800;
-  text-shadow: 0 1px 0 rgba(0,0,0,.4);
-  box-shadow: inset 0 -2px 0 rgba(0,0,0,.25);
-  width:max-content;
-}
-
-/* Right column (info) – height locked to left by JS, but we also clamp */
-.info{
-  background: var(--panel);
-  border-radius: var(--radius);
-  padding: var(--pad);
-  overflow:hidden;                    /* never drop below LIVE bottom visually */
-  position:relative;
-  height: var(--rowH);                /* initial clamp; JS will re-fit precisely */
-}
-
-/* Two-line grid inside info */
-.grid{
-  display:grid;
-  grid-template-columns: 1fr 1fr;
-  gap:12px 18px;
-  align-content:start;
-}
-
-/* Labels */
-.k{ color: var(--muted); }
-.v{ font-weight: 700; }
-
-/* Progress bar for slide timing */
-.progress{
-  position:absolute; left:12px; right:12px; bottom:10px; height:6px;
-  border-radius:6px; background:#0b1924;
-  overflow:hidden;
-}
-.progress > i{
-  display:block; height:100%; width:0%;
-  background: linear-gradient(90deg, #61c3ff, #2aa3ff);
-}
-
-/* Section heading */
-.h{
-  grid-column: 1 / -1;
-  font-weight: 800;
-  color: #b8d6ff;
-  margin-top:4px;
-}
-
-/* Small */
-small{ color:var(--muted); }
-
-/* Subtle separator line (for life slide) */
-.sep{
-  grid-column: 1 / -1;
-  height:1px; background:rgba(255,255,255,.06);
-  margin-top:4px;
-}
+  :root{
+    --w: 560px;
+    --gap: 14px;
+    --bg: #0e161c;
+    --panel: #111b23;
+    --ink: #e8f1f8;
+    --muted:#8fa6b6;
+    --accent:#4db2ff;
+    --card:#0c141a;
+    --pill:#c92c2c;
+    --shadow: 0 10px 26px rgba(0,0,0,.45);
+    --r:18px;
+  }
+  html,body{height:100%;margin:0;background:#0b1318;color:var(--ink);font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+  *{box-sizing:border-box}
+  .widget{width:var(--w);margin:26px; padding:18px;border-radius:calc(var(--r)+6px);
+    background:linear-gradient(180deg,#0f1820,#0a1217); box-shadow:var(--shadow)}
+  .title{display:flex;justify-content:center;align-items:center;
+    border-radius:var(--r); background:var(--panel); padding:14px 18px;
+    font-weight:700; font-size:26px; letter-spacing:.3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  /* main row uses equal heights for left + right, so the card never extends below LIVE */
+  .row{margin-top:12px; display:grid; grid-template-columns:120px 1fr; gap:var(--gap); align-items:stretch;}
+  .side{background:var(--panel); border-radius:var(--r); padding:14px;
+        display:flex; flex-direction:column; justify-content:space-between; align-items:center}
+  .flag{width:92px;height:64px; border-radius:10px; object-fit:cover; display:block}
+  .live{margin-top:16px; background:var(--pill); color:#fff; font-weight:800; font-size:16px;
+        padding:9px 16px; border-radius:999px; text-align:center; min-width:72px; box-shadow:0 2px 6px rgba(0,0,0,.35)}
+  .card{background:var(--panel); border-radius:var(--r); padding:16px 18px; display:flex; flex-direction:column}
+  .sectionTitle{font-weight:700; margin-bottom:10px}
+  .grid{display:grid; grid-template-columns:auto 1fr; column-gap:14px; row-gap:10px; align-content:start}
+  .label{color:var(--muted)}
+  .val{font-variant-numeric:tabular-nums}
+  .progress{height:6px; width:100%; margin-top:auto; background:#0a1015; border-radius:7px; overflow:hidden}
+  .bar{height:100%; width:0%; background:linear-gradient(90deg,#79c9ff,var(--accent)); transition:width .2s linear}
+  .hide{display:none !important}
+  /* small screens */
+  @media (max-width:640px){ :root{--w: 96vw} .title{font-size:22px} }
 </style>
 </head>
 <body>
+  <div class="widget" id="w">
+    <div class="title" id="title">—</div>
 
-<div class="widget">
-  <div id="title" class="title">—</div>
+    <div class="row">
+      <div class="side">
+        <img id="flag" class="flag" alt="Flag"/>
+        <div class="live" id="livePill">LIVE</div>
+      </div>
 
-  <div class="row">
-    <div class="badge">
-      <img id="flag" class="flag" alt="Flag" src="" />
-      <div class="live">LIVE</div>
-    </div>
-
-    <div id="info" class="info">
-      <div id="slide" class="grid"></div>
-      <div class="progress"><i id="bar"></i></div>
+      <div class="card">
+        <div class="sectionTitle" id="cardTitle">—</div>
+        <div class="grid" id="grid"></div>
+        <div class="progress" id="prog"><div class="bar" id="bar"></div></div>
+      </div>
     </div>
   </div>
-</div>
 
 <script>
-/* ---------- config ---------- */
-const API = 'https://iss-live.charlesleahy.workers.dev';
-const UPDATE_MS = 8000;            // how often to refresh ISS/region
-const SLIDE_MS  = 4500;            // slide duration
-const LIFE_FIRST = true;           // start on life/age first if available
+const API = "https://iss-live.charlesleahy.workers.dev";
 
-/* ---------- elements ---------- */
-const el = {
-  title:  document.getElementById('title'),
-  flag:   document.getElementById('flag'),
-  info:   document.getElementById('info'),
-  slide:  document.getElementById('slide'),
-  bar:    document.getElementById('bar'),
-};
+/* -------- helpers -------- */
+const $ = s => document.querySelector(s);
+const titleEl = $('#title'), flagEl = $('#flag'), gridEl = $('#grid'),
+      cardTitle = $('#cardTitle'), barEl = $('#bar'), progEl = $('#prog');
 
-/* ---------- helpers ---------- */
-const fmt = n => n.toLocaleString('en-US');
-const km  = n => `${fmt(n)} km`;
-const kps = n => `${n.toFixed(2)} km/s`;
-const utc = () => new Date().toISOString().slice(11,19) + ' UTC';
-const today = () => new Date().toISOString().slice(0,10);
+const fmtInt  = n => (n??"—").toLocaleString('en-US');
+const fmt1    = n => (n==null? "—" : (Math.round(n*10)/10).toLocaleString('en-US'));
+const pad2    = n => String(n).padStart(2,'0');
+const utcNow  = () => { const d=new Date();
+  return `${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}:${pad2(d.getUTCSeconds())}`; };
 
-function setFlag(iso2, ocean){
-  if (ocean){
-    // ocean icon (no border)
-    el.flag.src = "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f30a.svg";
-  }else{
-    const code = (iso2||'XX').toLowerCase();
-    el.flag.src = `https://flagcdn.com/w160/${code}.png`;
+function wavesSVG(){
+  // inline ocean icon, no borders, always available
+  return `data:image/svg+xml;utf8,
+  <svg xmlns='http://www.w3.org/2000/svg' width='92' height='64' viewBox='0 0 92 64'>
+    <defs><linearGradient id='g' x1='0' x2='0' y1='0' y2='1'>
+      <stop offset='0%' stop-color='%232f7cb6'/><stop offset='100%' stop-color='%231a4a73'/></linearGradient></defs>
+    <rect rx='10' ry='10' width='92' height='64' fill='url(%23g)'/>
+    <g fill='none' stroke='%23bfe5ff' stroke-width='5' stroke-linecap='round'>
+      <path d='M10 26c8 8 16 8 24 0s16-8 24 0 16 8 24 0'/>
+      <path d='M10 42c8 8 16 8 24 0s16-8 24 0 16 8 24 0'/>
+    </g>
+  </svg>`.replace(/\n|\s{2,}/g,' ');
+}
+
+function flagURL(iso2){
+  return `https://flagcdn.com/w80/${iso2.toLowerCase()}.png`;
+}
+
+/* -------- rendering -------- */
+function setHeader(place){
+  const name = place.ocean
+    ? place.ocean
+    : `${place.region ? place.region + ', ' : ''}${place.country || ''}`.trim().replace(/^,\s*/,'');
+  titleEl.textContent = name || '—';
+}
+
+function setFlag(place){
+  if (place.ocean) { flagEl.src = wavesSVG(); flagEl.alt = "Ocean"; }
+  else if (place.iso2) { flagEl.src = flagURL(place.iso2); flagEl.alt = place.iso2; }
+  else { flagEl.src = wavesSVG(); flagEl.alt = "—"; }
+}
+
+/* slides: stats, country, life (life+age) */
+function renderStats(state, place){
+  cardTitle.textContent = "Now";
+  gridEl.innerHTML = "";
+  addRow("UTC :", utcNow() + " UTC");
+  addRow("Date :", new Date().toISOString().slice(0,10));
+  addRow("Speed :", fmt1(state.speed_kps) + " km/s");
+  addRow("Elev :", fmtInt(state.alt_km) + " km");
+}
+function renderCountry(state, place, facts){
+  cardTitle.textContent = "Country Information";
+  gridEl.innerHTML = "";
+  addRow("Capital :", facts.capital ?? "—");
+  addRow("Density :", facts.density ?? "—");
+  addRow("Poverty :", facts.poverty ?? "—");
+}
+function renderLife(state, place, factsLife){
+  cardTitle.textContent = "Life & Age";
+  gridEl.innerHTML = "";
+  addRow("Life Expectancy :", factsLife.life ?? "—");
+  addRow("Median Age :", factsLife.median ?? "—");
+  addRow("Male :", factsLife.male ?? "—");
+  addRow("Female :", factsLife.female ?? "—");
+}
+function addRow(label, value){
+  const l = document.createElement('div'); l.className="label"; l.textContent = label;
+  const v = document.createElement('div'); v.className="val";   v.textContent = value ?? "—";
+  gridEl.appendChild(l); gridEl.appendChild(v);
+}
+
+/* -------- slider control -------- */
+let slides=[], slideIdx=0, tick=null, progTimer=null, secondsPer=7;
+
+function buildSlides(place, facts, factsLife){
+  const arr = [{name:"stats", fn:()=>renderStats(lastState, place)}];
+  if (!place.ocean){
+    arr.push({name:"country", fn:()=>renderCountry(lastState, place, facts)});
+    arr.push({name:"life",    fn:()=>renderLife(lastState, place, factsLife)});
   }
+  return arr;
 }
 
-/* build simple key/value row */
-function row(k, v){
-  const wrap = document.createElement('div');
-  const kEl = document.createElement('div');
-  const vEl = document.createElement('div');
-  wrap.style.display = 'contents';
-  kEl.className = 'k';
-  vEl.className = 'v';
-  kEl.textContent = k + ' :';
-  vEl.textContent = (v ?? '—');
-  wrap.appendChild(kEl); wrap.appendChild(vEl);
-  return wrap;
-}
-
-/* clamps right panel height to badge column (keeps bottom aligned to LIVE) */
-function fitHeights(){
-  const badge = document.querySelector('.badge');
-  const h = badge.getBoundingClientRect().height;
-  el.info.style.height = Math.round(h) + 'px';
-}
-
-/* ---------- slides ---------- */
-let slideIx = 0;
-let slideTimer, progTimer;
-let slides = [];  // each slide: {name, build(dom)}
-
-function startSlides(){
-  clearInterval(slideTimer);
-  clearInterval(progTimer);
-  slideIx = 0;
-  runSlide();
-  slideTimer = setInterval(nextSlide, SLIDE_MS);
-  animateProgress();
+function startSlider(){
+  stopSlider();
+  if (slides.length<=1){
+    progEl.classList.add('hide');
+    slides[0]?.fn();
+    return;
+  }
+  progEl.classList.remove('hide');
+  slideIdx = 0;
+  nextSlide();
+  tick = setInterval(nextSlide, secondsPer*1000);
+  // animate progress bar
+  let t=0;
+  progTimer = setInterval(()=>{
+    t = (t + 0.2); // 200ms steps
+    const frac = (t % (secondsPer*5)) / (secondsPer*5); // keep numbers modest
+    const within = (t % secondsPer) / secondsPer;
+    barEl.style.width = (within*100).toFixed(1)+"%";
+  },200);
 }
 function nextSlide(){
-  slideIx = (slideIx + 1) % slides.length;
-  runSlide();
-  animateProgress();
+  slides[slideIdx].fn();
+  slideIdx = (slideIdx+1) % slides.length;
 }
-function runSlide(){
-  el.slide.innerHTML = '';
-  const s = slides[slideIx];
-  s.build(el.slide);
-  fitHeights(); // keep aligned after slide content changes
-}
-function animateProgress(){
-  el.bar.style.transition = 'none';
-  el.bar.style.width = '0%';
-  // force reflow
-  void el.bar.offsetWidth;
-  el.bar.style.transition = `width ${SLIDE_MS}ms linear`;
-  el.bar.style.width = '100%';
+function stopSlider(){
+  clearInterval(tick); clearInterval(progTimer);
+  barEl.style.width = '0%';
 }
 
-/* ---------- data loop ---------- */
-let last = {lat:0, lon:0, alt_km:0, speed_kps:0};
-let region = {country:null, iso2:null, region:null, ocean:null};
-let facts  = {capital:'—', density:'—', poverty:'—'};
-let life   = {life:'—', male:'—', female:'—', median:'—'};
+/* -------- data polling -------- */
+let lastState=null, lastPlace=null, lastIso=null;
 
-async function getJSON(u, timeout=7000){
-  const ctl = new AbortController();
-  const t = setTimeout(() => ctl.abort(), timeout);
-  try{
-    const res = await fetch(u + (u.includes('?')?'&':'?') + 't=' + Date.now(), {
-      cache: 'no-store', signal: ctl.signal,
-      headers: {'user-agent':'iss-overlay'}
-    });
-    if(!res.ok) throw new Error(res.status);
-    return res.json();
-  } finally { clearTimeout(t); }
+async function getJSON(u, timeout=8000){
+  const ctl = new AbortController(); const id=setTimeout(()=>ctl.abort(), timeout);
+  try{ const r=await fetch(u,{signal:ctl.signal, headers:{'user-agent':'iss-overlay-widget'}}); if(!r.ok) throw new Error(r.status); return await r.json(); }
+  finally{ clearTimeout(id); }
 }
 
 async function refresh(){
-  // 1) ISS position
   try{
-    last = await getJSON(`${API}/iss`);
-  }catch(e){ /* ignore transient */ }
+    const iss = await getJSON(`${API}/iss`);
+    lastState = iss;
 
-  // 2) Reverse geocode -> region/ocean
-  try{
-    region = await getJSON(`${API}/rg?lat=${last.lat}&lon=${last.lon}`);
-  }catch(e){ /* ignore */ }
+    const rg = await getJSON(`${API}/rg?lat=${iss.lat}&lon=${iss.lon}`);
+    lastPlace = rg;
 
-  // 3) country stats (only if on land)
-  try{
-    if(region.iso2){
-      facts = await getJSON(`${API}/facts?iso2=${region.iso2}`);
-    }else{
-      facts = {capital:'—', density:'—', poverty:'—'};
+    // fetch facts when on land (iso2 present)
+    let facts={}, life={};
+    if (rg.iso2){
+      facts = await getJSON(`${API}/facts?iso2=${rg.iso2}`).catch(()=>({}));
+      // Life/Age values – if your worker adds them later, they’ll show; otherwise we keep "—"
+      life  = {
+        life:  facts.life  ?? "—",
+        male:  facts.male  ?? "—",
+        female:facts.female?? "—",
+        median:facts.median?? "—"
+      };
     }
-  }catch(e){ /* ignore */ }
 
-  // 4) (optional) life stats source placeholder; keep '—' if unknown
-  // if you add a life endpoint, put it here and fill "life" object
+    setHeader(rg);
+    setFlag(rg);
 
-  render();
+    // rebuild slides only if land/ocean changed or iso changed
+    const key = (rg.ocean?("ocean:"+rg.ocean):("land:"+rg.iso2||""));
+    if (key !== lastIso){
+      lastIso = key;
+      slides = buildSlides(rg, facts, life);
+      startSlider();
+    } else {
+      // still update current slide (UTC ticks, alt/speed drift)
+      slides[ (slideIdx+slides.length-1)%slides.length ].fn();
+    }
+
+  }catch(e){
+    titleEl.textContent = "Network error – retrying…";
+  }
 }
 
-function render(){
-  // Title (centered)
-  let title = region.ocean ? region.ocean : (region.region ? `${region.region}, ${region.country}` : '—');
-  el.title.textContent = title;
-
-  // Flag / ocean icon
-  setFlag(region.iso2, !!region.ocean);
-
-  // Slide set
-  slides = [
-    {
-      name:'telemetry',
-      build: (dom)=>{
-        const g = dom;
-        g.appendChild(row('UTC', utc()));
-        g.appendChild(row('Date', today()));
-        g.appendChild(row('Speed', kps(last.speed_kps||7.66)));
-        g.appendChild(row('Elev', km(Math.round(last.alt_km||420))));
-      }
-    },
-    {
-      name:'country',
-      build: (dom)=>{
-        const h = document.createElement('div'); h.className = 'h'; h.textContent = 'Country Information';
-        dom.appendChild(h);
-        dom.appendChild(row('Capital', facts.capital ?? '—'));
-        dom.appendChild(row('Density', facts.density ?? '—'));
-        dom.appendChild(row('Poverty', facts.poverty ?? '—'));
-      }
-    },
-    {
-      name:'life',
-      build: (dom)=>{
-        const h = document.createElement('div'); h.className = 'h'; h.textContent = 'Life & Age';
-        dom.appendChild(h);
-        dom.appendChild(row('Life Expectancy', life.life));
-        dom.appendChild(row('Median Age', life.median));
-        dom.appendChild(row('Male', life.male));
-        dom.appendChild(row('Female', life.female));
-      }
+/* update UTC clock in-place without rebuilding grid */
+setInterval(()=>{
+  if (!gridEl.children.length) return;
+  // find the first label cell that equals "UTC :" and update its value cell
+  for (let i=0;i<gridEl.children.length;i+=2){
+    if (gridEl.children[i].textContent.startsWith("UTC")){
+      gridEl.children[i+1].textContent = utcNow()+" UTC";
+      break;
     }
-  ];
+  }
+},1000);
 
-  // put life first if desired
-  if (LIFE_FIRST) slides = [slides[2], slides[0], slides[1]];
-  startSlides();
-}
-
-/* ---------- intervals ---------- */
-addEventListener('resize', fitHeights);
-addEventListener('load', () => {
-  fitHeights();
-  refresh();
-  setInterval(refresh, UPDATE_MS); // location updates without reload
-});
+/* poll fresh data frequently so location updates without reload */
+refresh();
+setInterval(refresh, 10000); // every 10s
 </script>
 </body>
 </html>
