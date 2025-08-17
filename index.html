@@ -4,7 +4,10 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>ISS Info Widget</title>
+<!-- SunCalc for sunrise/sunset -->
 <script src="https://unpkg.com/suncalc@1.9.0/suncalc.js"></script>
+<!-- satellite.js for SGP4 (local orbit fallback) -->
+<script src="https://cdn.jsdelivr.net/npm/satellite.js@5.0.1/dist/satellite.min.js"></script>
 <style>
   :root{ --w:440px; --h:240px; --bg:#0e0f12; --panel:#171a1f; --muted:#9aa4b2; --text:#e7edf5; --card:#101319; }
   html,body{height:100%;margin:0;background:transparent}
@@ -89,48 +92,66 @@ async function getText(url,{timeout=7000,retries=1}={}) {
 }
 async function getJSON(url,opts){ return JSON.parse(await getText(url,opts)); }
 
-/* Robust ISS position with multiple fallbacks (no keys) */
+/* ---------- ISS position with multiple fallbacks ---------- */
 async function getISS(){
   const ts = Date.now();
-  // Primary
+  // 1) WhereTheISS
   try{ return await getJSON(`https://api.wheretheiss.at/v1/satellites/25544?ts=${ts}`, {timeout:6000,retries:1}); }catch(e){}
-  // CORS proxy 1
-  try{ return await getJSON(`https://cors.isomorphic-git.org/https://api.wheretheiss.at/v1/satellites/25544?ts=${ts}`, {timeout:6000}); }catch(e){}
-  // r.jina.ai (fetches as text)
-  try{ return JSON.parse(await getText(`https://r.jina.ai/http://api.wheretheiss.at/v1/satellites/25544`)); }catch(e){}
-  // Open-Notify via proxy (coords only)
+  // 2) Open-Notify (via simple CORS proxy)
   try{
     const on = await getJSON(`https://cors.isomorphic-git.org/https://api.open-notify.org/iss-now.json`, {timeout:6000});
     return {
       latitude:  parseFloat(on?.iss_position?.latitude),
       longitude: parseFloat(on?.iss_position?.longitude),
-      altitude:  (last.altKm ?? 420),                    // fallback
-      velocity:  ((last.speedKps ?? 7.66) * 3600)        // km/h
+      altitude:  undefined,                // will fill from SGP4 fallback
+      velocity:  undefined
     };
+  }catch(e){}
+  // 3) Local SGP4 using fresh TLE via text proxy (always works)
+  try{
+    const tleTxt = await getText('https://r.jina.ai/https://celestrak.org/NORAD/elements/stations.txt', {timeout:7000});
+    const lines = tleTxt.split(/\r?\n/);
+    const idx = lines.findIndex(l=>/^ISS \(ZARYA\)/i.test(l));
+    const tle1 = lines[idx+1]?.trim();
+    const tle2 = lines[idx+2]?.trim();
+    if(tle1 && tle2 && window.satellite){
+      const satrec = satellite.twoline2satrec(tle1, tle2);
+      const now = new Date();
+      const pv = satellite.propagate(satrec, now);
+      const gmst = satellite.gstime(now);
+      const gd = satellite.eciToGeodetic(pv.position, gmst);
+      const lat = satellite.degreesLat(gd.latitude);
+      const lon = satellite.degreesLong(gd.longitude);
+      const altKm = gd.height; // km
+      // speed magnitude from km/s vector
+      const v = pv.velocity;
+      const speedKps = Math.sqrt(v.x*v.x + v.y*v.y + v.z*v.z); // km/s
+      return { latitude: lat, longitude: lon, altitude: altKm, velocity: speedKps*3600 /* to km/h to match primary */ };
+    }
   }catch(e){}
   throw new Error('All ISS sources failed');
 }
 
-/* Reverse geocode (reliable chain, no keys) */
+/* ---------- Reverse geocode (reliable chain, no keys) ---------- */
 async function reverseGeocode(lat, lon){
-  // 1) Open-Meteo
+  // Open-Meteo (fast, CORS OK)
   try{
     const j = await getJSON(`https://geocoding-api.open-meteo.com/v1/reverse?latitude=${lat}&longitude=${lon}&language=en`);
     const r = j?.results?.[0];
     if(r){ return {countryName:r.country||null, iso2:(r.country_code||'').toUpperCase()||null, region:r.admin1||r.admin2||r.name||null, oceanName:null}; }
   }catch(e){}
-  // 2) BigDataCloud (ocean detection)
+  // BigDataCloud (ocean detection)
   try{
     const j = await getJSON(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`);
     let ocean=null; const inf=j?.localityInfo?.informative||[]; const o=inf.find(x=>/ocean/i.test(x.description||x.name||'')); if(o) ocean=o.name||o.description;
     if(j.countryName || ocean){ return {countryName:j.countryName||null, iso2:j.countryCode||null, region:j.principalSubdivision||j.locality||null, oceanName:ocean}; }
   }catch(e){}
-  // 3) maps.co
+  // maps.co (Nominatim mirror)
   try{
     const j = await getJSON(`https://geocode.maps.co/reverse?lat=${lat}&lon=${lon}`); const a=j.address||{};
     return {countryName:a.country||null, iso2:(a.country_code||'').toUpperCase()||null, region:a.state||a.county||a.region||null, oceanName:a.ocean||a.water||null};
   }catch(e){}
-  // 4) OSM
+  // OSM direct
   try{
     const j = await getJSON(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`); const a=j.address||{};
     return {countryName:a.country||null, iso2:(a.country_code||'').toUpperCase()||null, region:a.state||a.county||a.region||null, oceanName:a.ocean||a.water||null};
@@ -144,12 +165,12 @@ function nextSunEvent(lat, lon, now){
   return evts.filter(e=>e.t && e.t>now).sort((a,b)=>a.t-b.t)[0] || null;
 }
 
-/* Persist last good state */
+/* Persist last good state so UI never blanks */
 let last = {lat:null, lon:null, altKm:null, speedKps:null, iso2:null, country:null, region:null};
 
 async function tick(){
   try{
-    // ISS position (with fallbacks)
+    // 1) ISS position (with fallbacks including SGP4)
     const iss = await getISS();
     const lat = Number(iss.latitude), lon = Number(iss.longitude);
     const altKm = Number(iss.altitude), speedKps = Number(iss.velocity)/3600;
@@ -160,35 +181,35 @@ async function tick(){
 
     const useLat=last.lat, useLon=last.lon;
 
-    // Geocode (if we have coords)
+    // 2) Reverse geocode
     let place = {countryName:last.country, iso2:last.iso2, region:last.region, oceanName:null};
     if(useLat!=null && useLon!=null){
       place = await reverseGeocode(useLat, useLon);
       last.country=place.countryName; last.iso2=place.iso2; last.region=place.region;
     }
 
-    // Two-line heading
+    // 3) Two-line heading
     const overOcean = !place.countryName && !!place.oceanName;
     if(overOcean){ fitTwoLine(place.oceanName || 'Open Ocean', ''); }
     else if(place.region && place.countryName){ fitTwoLine(place.region, place.countryName); }
     else { fitTwoLine(place.countryName || '—', ''); }
 
-    // Flag
+    // 4) Flag
     const flagEl = el('flag');
     if(place.iso2){ flagEl.src=`https://flagcdn.com/w80/${place.iso2.toLowerCase()}.png`; flagEl.style.opacity='1'; }
     else { flagEl.removeAttribute('src'); flagEl.style.opacity='0.25'; }
 
-    // Next sun event
+    // 5) Next sun event
     const now=new Date(); const next=(useLat!=null&&useLon!=null)? nextSunEvent(useLat,useLon,now):null;
     const pad=n=>String(n).padStart(2,'0'); const toUTCDate=d=>`${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`; const toUTCTime=d=>`${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
     if(next){ el('eventTitle').textContent=`Next: ${next.name}`; el('utc').textContent=`${toUTCTime(next.t)} UTC`; el('date').textContent=toUTCDate(next.t); }
     else { el('eventTitle').textContent='Next: —'; el('utc').textContent=`${toUTCTime(now)} UTC`; el('date').textContent=toUTCDate(now); }
 
-    // Numbers
+    // 6) Numbers
     el('speed').textContent = (last.speedKps!=null? fmt3.format(last.speedKps)+' km/s' : '—');
     el('alt').textContent   = (last.altKm!=null? fmt.format(last.altKm)+' km' : '—');
 
-    // Country facts
+    // 7) Country facts
     let capital='—', density='—', population=null, area=null;
     if(place.iso2){
       try{
@@ -202,7 +223,7 @@ async function tick(){
     el('capital').textContent = capital;
     el('density').textContent = density;
 
-    // Poverty
+    // 8) Poverty
     let pov='—';
     if(place.iso2){
       try{
@@ -216,7 +237,7 @@ async function tick(){
   }catch(err){ console.error(err); }
 }
 
-/* Live UTC labels (independent of API success) */
+/* Live UTC labels */
 function tickClock(){
   const now = new Date();
   const pad=n=>String(n).padStart(2,'0');
