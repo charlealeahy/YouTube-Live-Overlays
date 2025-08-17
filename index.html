@@ -1,168 +1,290 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>ISS Info Widget</title>
-<link rel="preconnect" href="https://flagcdn.com">
+<link rel="icon" href="data:;base64,=">
 <style>
   :root{
-    --bg:#0a1218;
-    --panel:#0f1b23;
-    --card:#0b151c;
-    --muted:#8aa9c6;
-    --text:#e9f3ff;
-    --shadow:0 14px 40px rgba(0,0,0,.45);
-    --radius:18px;
+    --bg:#0f171d;
+    --card:#0d151b;
+    --card2:#101a21;
+    --ink:#e9f2fb;
+    --muted:#a9bac8;
+    --accent:#5ec6ff;
+    --liveRed:#e0433a;
+    --shadow: 0 30px 60px rgba(0,0,0,.45);
+    --radius: 18px;
   }
-  html,body{height:100%;margin:0;background:var(--bg);font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:var(--text)}
-  *{box-sizing:border-box}
-  .wrap{padding:18px}
-  .widget{
-    width:560px; max-width:96vw;
-    background:linear-gradient(180deg,#101b24,#0c151b);
-    border:1px solid #0b2433;border-radius:var(--radius);
-    box-shadow:var(--shadow); padding:18px;
+  *{ box-sizing:border-box; }
+  html,body{
+    margin:0; padding:24px; background:#0b1419; color:var(--ink);
+    font: 500 16px/1.4 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Inter,Arial;
+  }
+  #widget{
+    width: 620px; max-width: 100%;
+    background: linear-gradient(180deg,#0c141a,#0b1319);
+    border-radius: var(--radius);
+    padding: 22px 22px 20px;
+    box-shadow: var(--shadow);
+    border: 1px solid rgba(255,255,255,.04);
   }
   .title{
-    display:grid;place-items:center;height:64px;
-    background:radial-gradient(120% 120% at -10% -20%,#0e2230 0,#0c151b 60%);
-    border:1px solid #123246;border-radius:14px;
-    font-weight:800;letter-spacing:.3px;font-size:28px;
+    background: radial-gradient(80% 120% at 50% 0%,#101b22,#0c141a 70%);
+    border-radius: 14px;
+    padding: 14px 18px;
+    text-align: center;
+    font-weight: 800;
+    letter-spacing: .2px;
+    font-size: 28px;
+    color: #eaf3ff;
+    border: 1px solid rgba(255,255,255,.04);
   }
-  .row{margin-top:14px;display:grid;grid-template-columns:118px 1fr;gap:14px}
-  .flagBox{
-    background:var(--card);border:1px solid #122738;border-radius:14px;
-    padding:12px 12px 56px 12px;position:relative;display:grid;place-items:center;min-height:136px
+  .row{
+    display:grid;
+    grid-template-columns: 128px 1fr;
+    gap: 18px;
+    margin-top: 16px;
   }
-  .flag{
-    width:92px;height:64px;object-fit:cover;border-radius:8px;display:block
+  /* Left column (image + LIVE) */
+  .left{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:flex-start;
+    background: var(--card);
+    border-radius: 14px;
+    padding: 14px;
+    border: 1px solid rgba(255,255,255,.05);
+  }
+  .flagbox{
+    width: 96px; height: 72px;
+    border-radius: 10px;
+    overflow:hidden;
+    display:flex; align-items:center; justify-content:center;
+    background:#0a1014;
+  }
+  .flagbox img{
+    width:100%; height:100%; object-fit:cover; display:block;
   }
   .live{
-    position:absolute;left:12px;bottom:12px;background:linear-gradient(#e22,#a40);
-    border-radius:12px;padding:7px 14px;font-weight:800;color:#fff;letter-spacing:.6px;
-    border:1px solid rgba(0,0,0,.35);box-shadow:0 6px 20px rgba(0,0,0,.35);
-    text-transform:uppercase;font-size:14px;display:flex;align-items:center;gap:8px
+    margin-top: 14px;
+    background: linear-gradient(180deg,#ff5a50,var(--liveRed));
+    color:#fff;
+    font-weight: 800;
+    letter-spacing:.5px;
+    padding: 8px 18px;
+    border-radius: 12px;
+    border: 1px solid rgba(0,0,0,.25);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.25), 0 4px 12px rgba(224,67,58,.35);
   }
-  .dot{width:8px;height:8px;background:#fff;border-radius:999px;box-shadow:0 0 10px #fff}
-  .card{
-    background:var(--card);border:1px solid #122738;border-radius:14px;
-    padding:16px 18px;display:grid;gap:10px;min-height:136px
+  .live::before{
+    content:"●";
+    margin-right:8px;
+    color:#fff;
+    text-shadow:0 0 8px rgba(255,255,255,.6);
   }
-  .kv{display:grid;grid-template-columns:120px 1fr;align-items:baseline;font-size:16px;line-height:1.15}
-  .k{color:var(--muted)}
-  .v{font-weight:700}
+
+  /* Right column (info) */
+  .info{
+    background: var(--card2);
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,.05);
+    padding: 16px 18px;
+    display:flex; flex-direction:column; justify-content:center;
+    /* keep the block visually aligned with the left column height */
+    min-height: calc(72px + 14px + 38px); /* flag height + spacing + LIVE badge approx */
+  }
+  .kv{
+    display:grid; grid-template-columns: 110px 1fr; gap: 6px 14px;
+    align-content:center;
+  }
+  .k{ color:var(--muted); }
+  .v{ color:var(--ink); font-weight:700; }
+  .unit{ color:var(--muted); font-weight:600; padding-left:6px; }
+
+  /* small helpers */
+  .sr-only{ position:absolute; width:1px; height:1px; clip:rect(0,0,0,0); overflow:hidden; white-space:nowrap; }
+  @media (max-width:560px){
+    #widget{ padding:16px; }
+    .title{ font-size:22px; padding:12px 14px; }
+    .row{ grid-template-columns: 110px 1fr; gap: 12px; }
+    .flagbox{ width:86px; height:64px; }
+    .live{ padding:7px 14px; }
+    .kv{ grid-template-columns: 96px 1fr; }
+  }
 </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="widget" id="widget">
-      <div class="title" id="place">—</div>
+  <main id="widget" role="group" aria-label="ISS location overlay">
+    <div class="title" id="title">—</div>
 
-      <div class="row">
-        <div class="flagBox">
-          <img id="flag" class="flag" alt="Flag / Photo" />
-          <div class="live"><span class="dot"></span>LIVE</div>
+    <div class="row">
+      <aside class="left">
+        <div class="flagbox">
+          <img id="flag" alt="loading…" src="" />
         </div>
+        <div class="live">LIVE</div>
+      </aside>
 
-        <div class="card" id="now">
-          <div class="kv"><div class="k">UTC :</div>   <div class="v" id="utc">—</div></div>
-          <div class="kv"><div class="k">Date :</div>  <div class="v" id="date">—</div></div>
-          <div class="kv"><div class="k">Speed :</div> <div class="v" id="speed">—</div></div>
-          <div class="kv"><div class="k">Elev :</div>  <div class="v" id="alt">—</div></div>
+      <section class="info">
+        <div class="kv" id="kv">
+          <div class="k">UTC :</div>   <div class="v" id="utc">—</div>
+          <div class="k">Date :</div>  <div class="v" id="date">—</div>
+          <div class="k">Speed :</div> <div class="v"><span id="speed">—</span><span class="unit">km/s</span></div>
+          <div class="k">Elev :</div>  <div class="v"><span id="elev">—</span><span class="unit">km</span></div>
         </div>
-      </div>
+      </section>
     </div>
-  </div>
+  </main>
 
 <script>
-const API = "https://iss-live.charlesleahy.workers.dev";
+/* ----------------- Config ----------------- */
+const API_BASE = 'https://iss-live.charlesleahy.workers.dev'; // change if needed
+const REFRESH_MS = 6000; // how often to refresh data
+
+/* --------------- DOM Handles --------------- */
 const els = {
-  place: document.getElementById('place'),
+  title: document.getElementById('title'),
   flag:  document.getElementById('flag'),
   utc:   document.getElementById('utc'),
   date:  document.getElementById('date'),
   speed: document.getElementById('speed'),
-  alt:   document.getElementById('alt'),
+  elev:  document.getElementById('elev'),
 };
 
-// robust ocean photo provider + bulletproof fallback
-function oceanPhoto(name){
-  // Unsplash Source: returns a valid ocean photo via 302 redirect (hotlink ok)
-  const q = encodeURIComponent(`${name} ocean,sea,water`);
-  return `https://source.unsplash.com/160x110/?${q}`;
-}
-const FALLBACK_SVG =
-  'data:image/svg+xml;utf8,' +
-  encodeURIComponent(
-    `<svg xmlns='http://www.w3.org/2000/svg' width='160' height='110'>
-       <defs>
-         <linearGradient id='g' x1='0' x2='0' y1='0' y2='1'>
-           <stop offset='0' stop-color='#2a75ff'/><stop offset='1' stop-color='#0b2136'/>
-         </linearGradient>
-       </defs>
-       <rect width='100%' height='100%' fill='url(#g)'/>
-       <g fill='white' opacity='.9'>
-         <path d='M15 75c10 0 10-10 20-10s10 10 20 10 10-10 20-10 10 10 20 10' stroke='white' stroke-width='4' fill='none'/>
-         <path d='M15 92c10 0 10-10 20-10s10 10 20 10 10-10 20-10 10 10 20 10' stroke='white' stroke-width='4' fill='none'/>
-       </g>
-     </svg>`
-  );
+/* --------------- Utilities --------------- */
+const sleep = (ms)=> new Promise(r=>setTimeout(r,ms));
 
-// ensure onerror fallback always shows something
-els.flag.addEventListener('error', () => {
-  els.flag.src = FALLBACK_SVG;
-}, {once:false});
-
-function fmt(num, unit){
-  return `${num.toLocaleString('en-US',{maximumFractionDigits: (unit==='km' ? 0 : 2)})} ${unit}`;
-}
-
-function setFlagOrPhoto(meta){
-  // show national flag for land
-  if (meta.iso2){
-    const iso = meta.iso2.toLowerCase();
-    els.flag.src = `https://flagcdn.com/w80/${iso}.png`;
-    els.flag.alt = `${meta.country} flag`;
-    return;
-  }
-  // ocean photo for water
-  const oceanName = meta.ocean || 'Ocean';
-  els.flag.src = oceanPhoto(oceanName);
-  els.flag.alt = oceanName;
-}
-
-async function getJSON(url, timeoutMs=7000){
-  const ac = new AbortController();
-  const t = setTimeout(()=>ac.abort(), timeoutMs);
+async function getJSON(url, timeout=7000){
+  const ctrl = new AbortController();
+  const id = setTimeout(()=>ctrl.abort(), timeout);
   try{
-    const r = await fetch(url, {signal: ac.signal, headers: {'user-agent':'iss-overlay'}});
-    if(!r.ok) throw new Error(r.status);
+    const r = await fetch(url, {signal: ctrl.signal, headers:{'user-agent':'iss-overlay'}} );
+    if(!r.ok) throw new Error(r.status+' '+r.statusText);
     return await r.json();
-  }finally{ clearTimeout(t) }
+  }finally{ clearTimeout(id); }
+}
+function nowUTC(){
+  const d = new Date();
+  return d.toISOString().slice(11,19) + ' UTC';
+}
+function todayUTC(){
+  return new Date().toISOString().slice(0,10);
+}
+function fmt(n, d=2){
+  if(n==null || !isFinite(n)) return '—';
+  return Number(n).toFixed(d).replace(/\.00$/,'');
 }
 
-async function fetchData(){
-  const iss = await getJSON(`${API}/iss`);
-  const {lat, lon} = iss;
+/* -------- Ocean photo (random) ---------- */
+const rand = () => (Math.random()*1e9|0);
+const FALLBACK_SVG =
+  'data:image/svg+xml;utf8,'+
+  encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 72">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#183241"/><stop offset="1" stop-color="#0f2230"/>
+  </linearGradient></defs>
+  <rect width="96" height="72" rx="10" fill="url(#g)"/>
+  <g fill="#87d2ff" opacity=".9">
+    <path d="M10 42c6 0 6-4 12-4s6 4 12 4 6-4 12-4 6 4 12 4 6-4 12-4 6 4 12 4v6c-6 0-6-4-12-4s-6 4-12 4-6-4-12-4-6 4-12 4-6-4-12-4-6 4-12 4v-6z"/>
+  </g></svg>`);
 
-  const rg  = await getJSON(`${API}/rg?lat=${lat}&lon=${lon}`);
-
-  const title = rg.ocean ? rg.ocean : (rg.region ? `${rg.region}, ${rg.country}` : rg.country);
-  els.place.textContent = title || "—";
-
-  setFlagOrPhoto({iso2: rg.iso2 || null, country: rg.country, ocean: rg.ocean || null});
-
-  const now = new Date();
-  els.utc.textContent   = now.toISOString().slice(11,19) + " UTC";
-  els.date.textContent  = now.toISOString().slice(0,10);
-  els.speed.textContent = fmt(iss.speed_kps, "km/s");
-  els.alt.textContent   = fmt(iss.alt_km,  "km");
+function candidateOceanPhotos(){
+  return [
+    `https://source.unsplash.com/192x144/?ocean,sea,water&sig=${rand()}`,
+    `https://source.unsplash.com/random/192x144?ocean&sig=${rand()}`,
+    `https://picsum.photos/192/144?random=${rand()}`,
+    `https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=192&h=144&q=70`
+  ];
 }
 
-// initial + auto refresh
-fetchData().catch(console.error);
-setInterval(()=>fetchData().catch(console.error), 12000);
+function loadImage(url){
+  return new Promise((resolve,reject)=>{
+    const img = new Image();
+    img.onload = ()=>resolve(url);
+    img.onerror = ()=>reject(url);
+    img.src = url;
+  });
+}
+
+async function setRandomOceanPhoto(){
+  for(const u of candidateOceanPhotos()){
+    try{
+      const ok = await loadImage(u);
+      els.flag.src = ok;
+      els.flag.alt = 'Ocean';
+      return;
+    }catch(_){} // try next
+  }
+  els.flag.src = FALLBACK_SVG;
+  els.flag.alt = 'Ocean';
+}
+
+/* --------------- Flag / Photo --------------- */
+async function setFlagOrPhoto(meta){
+  if(meta && meta.iso2){ // land
+    const iso = meta.iso2.toLowerCase();
+    els.flag.src = `https://flagcdn.com/w160/${iso}.png`;
+    els.flag.alt = `${meta.country} flag`;
+  }else{
+    await setRandomOceanPhoto();
+  }
+}
+
+/* --------------- Title builder --------------- */
+function buildTitle(meta){
+  if(!meta) return '—';
+  if(meta.ocean) return meta.ocean;
+  // Prefer "Region, Country" if region exists; otherwise just Country
+  if(meta.region && meta.country) return `${meta.region}, ${meta.country}`;
+  if(meta.country) return meta.country;
+  return '—';
+}
+
+/* --------------- Fetchers --------------- */
+async function fetchISS(){
+  const r = await getJSON(`${API_BASE}/iss`);
+  // expected: {lat, lon, alt_km, speed_kps, ...}
+  return r;
+}
+async function reverseGeocode(lat, lon){
+  const r = await getJSON(`${API_BASE}/rg?lat=${lat}&lon=${lon}`);
+  // expected: {country, iso2, region, ocean, src}
+  return r;
+}
+
+/* --------------- Main updater --------------- */
+async function updateOnce(){
+  try{
+    const iss = await fetchISS();
+    const meta = await reverseGeocode(iss.lat, iss.lon);
+
+    // Title + image
+    els.title.textContent = buildTitle(meta);
+    await setFlagOrPhoto(meta);
+
+    // Stats
+    els.utc.textContent   = nowUTC();
+    els.date.textContent  = todayUTC();
+    els.speed.textContent = fmt(iss.speed_kps,2);
+    els.elev.textContent  = fmt(iss.alt_km,0);
+  }catch(err){
+    // keep previous values; just refresh clock/date so it doesn’t look frozen
+    els.utc.textContent  = nowUTC();
+    els.date.textContent = todayUTC();
+    // you could console.log if you want
+    // console.error(err);
+  }
+}
+
+async function start(){
+  await updateOnce();
+  // steady cadence
+  setInterval(updateOnce, REFRESH_MS);
+}
+start();
 </script>
 </body>
 </html>
