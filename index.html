@@ -1,176 +1,204 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>ISS Info Widget</title>
-
-<!-- silence favicon 404 -->
-<link rel="icon" href='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg"/>'>
-
-<!-- Sunrise/Sunset math -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;700;800&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/suncalc@1.9.0/suncalc.js"></script>
-
 <style>
-  :root{ --w:520px; --h:280px; --bg:#0e0f12; --panel:#171a1f; --muted:#9aa4b2; --text:#e7edf5; --card:#101319; }
-  html,body{height:100%;margin:0;background:transparent}
-  *{box-sizing:border-box;font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
-
-  .widget{width:var(--w);height:var(--h);display:grid;grid-template-rows:1fr 110px;gap:12px;padding:12px;
-          background:var(--bg);color:var(--text);border:1px solid #262a34;border-radius:14px;box-shadow:0 10px 28px rgba(0,0,0,.48);overflow:hidden}
-
-  .location{display:grid;place-items:center;background:linear-gradient(180deg,#12151c,#0e1116);border-radius:12px;border:1px solid #1e2530;padding:16px}
-  #title{font-weight:800;letter-spacing:.3px;line-height:1.05;font-size:36px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center}
-  .location.small #title{font-size:30px}.location.tiny #title{font-size:24px}
-
-  .bottom{display:grid;grid-template-columns:130px 1fr;gap:12px}
-
-  .flagCard{background:var(--card);border:1px solid #1f2430;border-radius:12px;display:grid;grid-template-rows:1fr 26px;overflow:hidden}
-  .flagWrap{display:flex;align-items:center;justify-content:center;padding:10px;background:radial-gradient(120% 140% at 50% 0%,#1a2230 0%,#0f141d 60%,#0b0e13 100%)}
-  .flag{width:100%;height:100%;max-width:104px;max-height:70px;object-fit:cover;border-radius:8px;border:1px solid #2a3140;background:#0b0d10}
-  .live{height:26px;background:#b80e0e;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;letter-spacing:.6px;text-transform:uppercase;font-size:13px}
-
-  .info{background:var(--panel);border:1px solid #222937;border-radius:12px;padding:12px 14px;display:grid;grid-template-rows:auto 1fr auto;gap:8px}
-  .rowTitle{font-weight:900;color:#cfd7e3;font-size:18px}
-  .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 18px;font-size:14px;line-height:1.25;align-content:start}
-  .muted{color:var(--muted)} .mono{font-variant-numeric:tabular-nums;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
-  .span2{grid-column:1/-1}
-  .tappable{cursor:pointer;user-select:none}
-  #dbg{opacity:.65;font-size:11px;color:#a8b0bd}
+:root{
+  --w: 620px;          /* tweak this if you want a different width */
+  --h: 240px;
+  --bg:#0b0f15; --panel:#121823; --muted:#96a0b4; --text:#eaf2ff; --card:#0f141e;
+  --accent:#1da1f2; --live:#bf1d1d; --ring:#101319;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:transparent;font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+.widget{width:var(--w); height:var(--h); display:grid; grid-template-rows: 1fr auto; gap:10px;
+  padding:10px; border:1px solid #263246; background:radial-gradient(100% 140% at 50% 0%, #14233b 0%, #0e1116 100%);
+  color:var(--text); border-radius:16px; box-shadow:0 12px 30px rgba(0,0,0,.35);
+}
+.title{display:flex; align-items:center; padding:14px; border-radius:12px; background:
+  linear-gradient(180deg,#10151f,#0b0f14 55%,#0b0f14); border:1px solid #1f2632; box-shadow: inset 0 0 0 1px #0a0f17;
+  letter-spacing:.5px; }
+.title span{font-weight:800; font-size:32px; line-height:1; text-shadow:0 1px 0 #000; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.bottom{display:grid; grid-template-columns:110px 1fr; gap:10px}
+.flagCard{position:relative; background:linear-gradient(180deg,#0f141d,#0b0f14); border:1px solid #1e2634; border-radius:12px; display:grid; place-items:center}
+.flagWrap{width:88px; height:56px; display:grid; place-items:center; overflow:hidden; border-radius:8px; background:#0d1320; border:1px solid #0d2133}
+.flag{width:100%; height:100%; object-fit:cover}
+.live{position:absolute; left:10px; bottom:10px; font-weight:800; letter-spacing:.4px; font-size:12px;
+  padding:6px 10px; border-radius:8px; background:#851414; border:1px solid #6a1212; color:#fff;
+  box-shadow: inset 0 -2px 0 rgba(255,255,255,.05), 0 3px 12px rgba(0,0,0,.35);
+}
+.info{background:linear-gradient(180deg,#0f141d,#0b0f14); border:1px solid #1e2634; border-radius:12px; padding:12px 14px; display:grid; gap:6px}
+.rowTitle{font-weight:800; font-size:18px}
+.grid{display:grid; grid-template-columns:1fr 1fr; gap:10px 18px; align-items:baseline; font-size:14px}
+.k{color:var(--muted)}
+.v strong{font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+.skeleton{opacity:.5}
+small{font-size:12px; color:var(--muted)}
+@media (max-width:520px){ .title span{font-size:26px} .live{display:none} }
 </style>
 </head>
-
 <body>
-<div class="widget">
-  <div class="location" id="loc"><div id="title">—</div></div>
+  <div class="widget" id="root">
+    <div class="title"><span id="locText">—</span></div>
 
-  <div class="bottom">
-    <div class="flagCard">
-      <div class="flagWrap"><img id="flag" class="flag" alt="Flag" /></div>
-      <div class="live">LIVE NOW</div>
-    </div>
-
-    <div class="info tappable" id="info">
-      <div class="rowTitle" id="panelTitle">Next: —</div>
-
-      <!-- Panel A: Now -->
-      <div class="grid" id="panelNow">
-        <div><span class="muted">UTC:</span>   <span class="mono" id="utc">—</span></div>
-        <div><span class="muted">Date:</span>  <span class="mono" id="date">—</span></div>
-        <div><span class="muted">Speed:</span> <span class="mono" id="speed">—</span></div>
-        <div><span class="muted">Elev:</span>  <span class="mono" id="alt">—</span></div>
-        <div class="span2"><span class="muted">Coords:</span> <span class="mono" id="coords">—</span></div>
+    <div class="bottom">
+      <div class="flagCard">
+        <div class="flagWrap"><img id="flag" class="flag" alt="Flag"/></div>
+        <div class="live">LIVE&nbsp;NOW</div>
       </div>
 
-      <!-- Panel B: Country Information -->
-      <div class="grid" id="panelFacts" style="display:none">
-        <div class="span2"><strong>Country Information</strong></div>
-        <div><span class="muted">Life Expectancy:</span> <span class="mono" id="leTotal">—</span></div>
-        <div><span class="muted">Median Age:</span>     <span class="mono" id="medianAge">—</span></div>
-        <div><span class="muted">Male:</span>           <span class="mono" id="leMale">—</span></div>
-        <div><span class="muted">Female:</span>         <span class="mono" id="leFemale">—</span></div>
-        <div><span class="muted">Land Area:</span>      <span class="mono" id="landArea">—</span></div>
-        <div><span class="muted">Forest:</span>         <span class="mono" id="forest">—</span></div>
-        <div><span class="muted">Pasture:</span>        <span class="mono" id="pasture">—</span></div>
-      </div>
+      <div class="info">
+        <div class="rowTitle"><span id="nextLbl">Next: —</span></div>
 
-      <div id="dbg"></div>
+        <div class="grid" style="margin-top:2px">
+          <div class="k">UTC:</div>   <div class="v"><strong id="utc">—</strong> <small>UTC</small></div>
+          <div class="k">Date:</div>  <div class="v"><strong id="date">—</strong></div>
+          <div class="k">Speed:</div> <div class="v"><strong id="spd">—</strong> <small>km/s</small></div>
+          <div class="k">Elev:</div>  <div class="v"><strong id="alt">—</strong> <small>km</small></div>
+        </div>
+
+        <div class="rowTitle" style="margin-top:6px">Country Information</div>
+        <div class="grid">
+          <div class="k">Capital:</div> <div class="v" id="cap">—</div>
+          <div class="k">Density:</div> <div class="v" id="dens">—</div>
+          <div class="k">Poverty:</div> <div class="v" id="pov">—</div>
+        </div>
+      </div>
     </div>
   </div>
-</div>
 
 <script>
-/* ===== CONFIG ===== */
-const WORKER_BASE = "https://iss-live.charlesleahy.workers.dev";
-const REFRESH_MS   = 6000;
-const PANEL_SWAP_MS= 12000;
-/* ================== */
+const API = "https://iss-live.charlesleahy.workers.dev";
 
-const el=id=>document.getElementById(id);
-const fmt2=new Intl.NumberFormat('en-US',{maximumFractionDigits:2});
-const fmt3=new Intl.NumberFormat('en-US',{maximumFractionDigits:3});
-const pad=n=>String(n).padStart(2,'0');
+const el = id => document.getElementById(id);
+const locText = el('locText'), flag = el('flag'),
+      utc = el('utc'), date = el('date'), spd = el('spd'), alt = el('alt'),
+      cap = el('cap'), dens = el('dens'), pov = el('pov'), nextLbl = el('nextLbl');
 
-function setTitle(t){const box=el('loc');box.classList.remove('small','tiny');el('title').textContent=t||'—';const n=(t||'').length;if(n>28&&n<=44)box.classList.add('small');if(n>44)box.classList.add('tiny');}
-const toUTCd=d=>`${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`;
-const toUTCt=d=>`${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())} UTC`;
-
-async function j(url,timeout=8000){
-  const ac=new AbortController();const t=setTimeout(()=>ac.abort(),timeout);
-  try{const r=await fetch(url,{signal:ac.signal,cache:'no-store'});if(!r.ok)throw 0;return await r.json();}
-  finally{clearTimeout(t);}
+function fmt2(n){ return String(Math.floor(n)).padStart(2,'0'); }
+function pad(num,dp=0){ return Number(num).toFixed(dp); }
+function toDM(lat,lon){
+  const sn = lat>=0?'N':'S', we = lon>=0?'E':'W';
+  return `${Math.abs(lat).toFixed(2)}° ${sn}, ${Math.abs(lon).toFixed(2)}° ${we}`;
 }
+function setText(node, val){ node.textContent = (val ?? '—'); }
 
-const OCEAN_SVG='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="96" height="64"><rect width="100%" height="100%" fill="%230b1a2a"/><text x="50%" y="55%" font-size="16" fill="white" text-anchor="middle" font-family="Segoe UI, Arial">🌊</text></svg>';
-
-function nextSun(lat,lon){
-  const now=new Date();const L=[];for(let d=0;d<2;d++){const dt=new Date(now.getTime()+d*86400000);const t=SunCalc.getTimes(dt,lat,lon);L.push({n:'Sunrise',t:t.sunrise},{n:'Sunset',t:t.sunset});}
-  const nx=L.filter(x=>x.t&&x.t>now).sort((a,b)=>a.t-b.t)[0];if(!nx)return null;
-  const mins=Math.round((nx.t-now)/60000);const label=mins<=0?'now':(mins<60?`${mins} min`:`${Math.floor(mins/60)} h ${mins%60} m`);
-  return {label:`Next: ${nx.n} in ${label}`, at:nx.t};
-}
-
-let panel=0;function swap(){panel=(panel+1)%2;el('panelNow').style.display=panel?'none':'grid';el('panelFacts').style.display=panel?'grid':'none';}
-el('info').addEventListener('click',swap);setInterval(swap,PANEL_SWAP_MS);
-
-/* -------- main loop (Worker ONLY) -------- */
-async function tick(){
+async function getJSON(url, timeout=8000){
+  const ac = new AbortController();
+  const t = setTimeout(()=>ac.abort(), timeout);
   try{
-    // 1) ISS from Worker only
-    const iss = await j(`${WORKER_BASE}/iss`, 7000);
-    el('dbg').textContent = `data source: ${iss.src||'worker'}`;
+    const r = await fetch(url, {signal: ac.signal, headers:{'cache-control':'no-cache'}});
+    if(!r.ok) throw new Error(r.status);
+    return await r.json();
+  } finally { clearTimeout(t); }
+}
 
-    if(!(Number.isFinite(iss.lat) && Number.isFinite(iss.lon))) return;
+// compute next sunrise/sunset label + countdown for lat/lon
+function nextSunStr(lat, lon){
+  const now = new Date();
+  const t0 = SunCalc.getTimes(now, lat, lon);
+  const t1 = SunCalc.getTimes(new Date(now.getTime()+86400000), lat, lon);
 
-    el('coords').textContent = `${iss.lat.toFixed(2)}° ${iss.lat>=0?'N':'S'}, ${iss.lon.toFixed(2)}° ${iss.lon>=0?'E':'W'}`;
-    el('speed').textContent  = iss.speed_kps!=null? `${fmt3.format(iss.speed_kps)} km/s` : '—';
-    el('alt').textContent    = iss.alt_km!=null  ? `${fmt2.format(iss.alt_km)} km`     : '—';
+  const candidates = [
+    {kind:"Sunrise", at:t0.sunrise},
+    {kind:"Sunset",  at:t0.sunset},
+    {kind:"Sunrise", at:t1.sunrise},
+    {kind:"Sunset",  at:t1.sunset},
+  ].filter(x=>x.at && x.at>now).sort((a,b)=>a.at-b.at);
 
-    const sun = nextSun(iss.lat, iss.lon);
-    if(sun){ el('panelTitle').textContent = sun.label; el('utc').textContent = toUTCt(sun.at); el('date').textContent = toUTCd(sun.at); }
+  if(!candidates.length) return "Next: —";
 
-    // 2) Reverse-geocode (Worker only)
-    const place = await j(`${WORKER_BASE}/rg?lat=${iss.lat}&lon=${iss.lon}`, 7000);
-    let title='—';
-    if(!place.country && place.ocean) title = place.ocean || 'Open Ocean';
-    else if(place.region && place.country) title = `${place.region}, ${place.country}`;
-    else title = place.country || place.region || '—';
-    setTitle(title);
+  const nxt = candidates[0];
+  const ms = nxt.at - now;
+  const h = Math.floor(ms/3600000), m = Math.floor((ms%3600000)/60000);
+  return `Next: ${nxt.kind} in ${h} h ${m} m`;
+}
 
-    const f=el('flag');
-    if(place.iso2){ f.src=`https://flagcdn.com/w80/${place.iso2.toLowerCase()}.png`; }
-    else{ f.src=OCEAN_SVG; }
-    f.style.opacity='1';
+function setFlag(iso2, oceanName){
+  if (oceanName){
+    // simple ocean icon
+    flag.src = "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f30a.svg";
+    flag.alt = "Ocean";
+    return;
+  }
+  if(!iso2){ flag.removeAttribute('src'); flag.alt=''; return; }
+  const code = iso2.toLowerCase();
+  // crisp, fast flag CDN
+  flag.src = `https://flagcdn.com/w80/${code}.png`;
+  flag.alt = iso2;
+}
 
-    // 3) Country facts (public CORS-safe APIs; if they fail, just leave dashes)
-    try{
-      if(place.iso2){
-        const rc = await j(`https://restcountries.com/v3.1/alpha/${place.iso2}`,7000);
-        const r = Array.isArray(rc)?rc[0]:rc; const area=r?.area||null;
-        el('landArea').textContent = area? `${Math.round(area).toLocaleString('en-US')} km²` : '—';
-
-        const WB = async code => { try{ const q=await j(`https://api.worldbank.org/v2/country/${place.iso2}/indicator/${code}?format=json&per_page=70`,8000); const s=q?.[1]||[]; const v=s.find(x=>x.value!==null); return (v&&typeof v.value==='number')?v.value:null; }catch{return null;} };
-        const leT=await WB('SP.DYN.LE00.IN'), leM=await WB('SP.DYN.LE00.MA.IN'), leF=await WB('SP.DYN.LE00.FE.IN');
-        const frK=await WB('AG.LND.FRST.K2'), frP=await WB('AG.LND.FRST.ZS');
-        const paK=await WB('AG.LND.PAST.K2'), paP=await WB('AG.LND.PAST.ZS');
-        const yrs=v=>v==null?'—':`${fmt2.format(v)} yrs`;
-        el('leTotal').textContent=yrs(leT); el('leMale').textContent=yrs(leM); el('leFemale').textContent=yrs(leF);
-        el('medianAge').textContent='—';
-        el('forest').textContent=(frK==null&&frP==null)?'—':`${frK!=null?Math.round(frK).toLocaleString('en-US')+' km²':''}${frP!=null?` (${fmt2.format(frP)}%)`:''}`;
-        el('pasture').textContent=(paK==null&&paP==null)?'—':`${paK!=null?Math.round(paK).toLocaleString('en-US')+' km²':''}${paP!=null?` (${fmt2.format(paP)}%)`:''}`;
-      }
-    }catch{}
-  }catch(e){
-    // If Worker is down, keep last good values and show a hint
-    el('dbg').textContent = 'data source: worker error';
+function setTitle(region, country, ocean){
+  if (ocean){
+    setText(locText, ocean);
+  } else if (region && country){
+    setText(locText, `${region}, ${country}`);
+  } else {
+    setText(locText, country || '—');
   }
 }
 
-/* Live UTC clock */
-setInterval(()=>{const n=new Date(); el('date').textContent=`${n.getUTCFullYear()}-${pad(n.getUTCMonth()+1)}-${pad(n.getUTCDate())}`; el('utc').textContent=`${pad(n.getUTCHours())}:${pad(n.getUTCMinutes())}:${pad(n.getUTCSeconds())} UTC`;},1000);
+function tickClock(){
+  const d = new Date();
+  setText(utc, `${fmt2(d.getUTCHours())}:${fmt2(d.getUTCMinutes())}:${fmt2(d.getUTCSeconds())}`);
+  setText(date, d.toISOString().slice(0,10));
+}
+setInterval(tickClock, 1000); tickClock();
 
-tick();
-setInterval(tick, REFRESH_MS);
+async function refresh(){
+  try{
+    // 1) Get ISS position/speed
+    const iss = await getJSON(`${API}/iss?ts=${Date.now()}`);
+    const { lat, lon, alt_km, speed_kps } = iss || {};
+    setText(spd, Number.isFinite(speed_kps)? speed_kps.toFixed(2) : '—');
+    setText(alt, Number.isFinite(alt_km)? Math.round(alt_km) : '—');
+
+    // 2) Title + reverse geocode
+    let country=null, region=null, iso2=null, ocean=null;
+    try{
+      const rg = await getJSON(`${API}/rg?lat=${lat}&lon=${lon}`);
+      country = rg?.country; region = rg?.region; iso2 = rg?.iso2; ocean = rg?.ocean;
+      setTitle(region, country, ocean);
+      setFlag(iso2, ocean);
+    }catch{
+      setTitle(null, null, null);
+      setFlag(null, null);
+    }
+
+    // 3) Sun time string
+    try{
+      setText(nextLbl, nextSunStr(lat, lon));
+    }catch{ setText(nextLbl, "Next: —"); }
+
+    // 4) Country facts (only if over land with ISO2)
+    if (iso2){
+      try{
+        const f = await getJSON(`${API}/facts?iso2=${iso2}`);
+        setText(cap,  f?.capital || '—');
+        setText(dens, f?.density || '—');
+        setText(pov,  f?.poverty || '—');
+      }catch{
+        setText(cap,'—'); setText(dens,'—'); setText(pov,'—');
+      }
+    } else {
+      setText(cap,'—'); setText(dens,'—'); setText(pov,'—');
+    }
+
+  }catch(e){
+    // In case /iss fails, leave last-known values on screen
+    console.error(e);
+  }
+}
+// refresh often enough to look “live” but be nice to APIs
+refresh();
+setInterval(refresh, 15000);
 </script>
 </body>
 </html>
