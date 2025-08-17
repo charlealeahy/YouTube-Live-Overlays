@@ -1,344 +1,328 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>ISS Info Widget</title>
 <style>
   :root{
-    --w: 560px;
-    --pad: 12px;
-    --rad: 14px;
-    --bg: #0c1319;
-    --panel: #0f1a22;
-    --card: #0e151c;
-    --ink: #eaf2f8;
-    --muted: #9bb3c7;
-    --accent: #4db6ff;
-    --pill: #d71f1f;
-    --shadow: 0 18px 40px rgba(0,0,0,.45);
+    --w: 560px;          /* overall widget width */
+    --panel: #0f1a22;    /* card surface */
+    --panel2:#0b141b;    /* header surface */
+    --ink:  #eaf3ff;     /* main text */
+    --mut:  #a9b4c0;     /* subtle text */
+    --accent:#3aa0ff;    /* accent/cursor */
+    --live:#cc1b1b;      /* LIVE pill */
+    --ring:#0c1115;      /* outer background */
+    --shadow: rgba(9,15,20,.55);
   }
 
-  html,body{height:100%;margin:0;background:transparent}
-  *{box-sizing:border-box}
+  *{ box-sizing: border-box; }
+  html,body{
+    height:100%; margin:0; background:linear-gradient(180deg,#0a1116,#0a1116 60%,#0b141b);
+    color:var(--ink); font: 16px/1.35 system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  }
 
   .widget{
     width:var(--w);
-    color:var(--ink);
-    font: 500 14px/1.3 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-    display:grid;
-    gap:12px;
-    padding:6px;
-    background: rgba(0,0,0,.0);
+    margin:22px 0 0 18px;
+    background:radial-gradient(1200px 120px at -80px -80px, #0d1720, #0a1116);
+    padding:16px 16px 18px;
+    border-radius:18px;
+    box-shadow:
+      0 28px 60px var(--shadow),
+      inset 0 0 0 1px #0c141b;
   }
 
+  /* Title bar */
   .title{
-    background: linear-gradient(180deg,#0f1a22,#0b1116);
-    border:1px solid #14212b;
-    border-radius: var(--rad);
-    padding: 16px 18px;
-    box-shadow: var(--shadow);
-    font-weight: 700;
-    font-size: 28px;
-    letter-spacing:.2px;
+    display:flex; align-items:center; justify-content:center;
+    background:var(--panel2);
+    border-radius:14px; height:56px; padding:0 16px; margin-bottom:12px;
+    box-shadow: inset 0 0 0 1px #0e1820;
+  }
+  .title h1{
+    margin:0; font-weight:700; letter-spacing:.2px; font-size:26px; text-align:center;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
 
+  /* Body row */
   .row{
-    display:grid;
-    grid-template-columns: 112px 1fr;
-    gap:12px;
+    display:grid; grid-template-columns:120px 1fr; gap:12px;
   }
 
-  /* Left media column */
+  /* Flag + LIVE (locked alignment) */
   .flagCol{
-    position:relative;
-    background: linear-gradient(180deg,#0f1a22,#0b1116);
-    border:1px solid #14212b;
-    border-radius: var(--rad);
-    height: 136px;
-    display:flex;align-items:center;justify-content:center;
-    box-shadow: var(--shadow);
-    padding:0;
+    display:flex; flex-direction:column; align-items:center; gap:10px;
   }
   .flag{
-    width:86px;height:58px;border-radius:8px;display:block;object-fit:cover;
-    background:#0b1116;
+    width:96px; height:64px; display:block; object-fit:cover; border-radius:8px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.35);
+    background:#0a1116;
   }
-  .pill{
-    position:absolute;left:10px;bottom:10px;
-    font-weight:800;letter-spacing:.5px;font-size:12px;
-    padding:6px 10px;border-radius:10px;
-    background: linear-gradient(180deg,#ed3434,#b61818);
-    border:1px solid rgba(0,0,0,.35);
-    color:#fff;
-    text-transform: uppercase;
+  .live{
+    width:96px; height:32px; display:flex; align-items:center; justify-content:center;
+    background: linear-gradient(#f04545, #bb1414);
+    color:white; font-weight:800; letter-spacing:.6px; border-radius:9px;
+    box-shadow: 0 4px 14px rgba(204,27,27,.45), inset 0 0 0 1px rgba(255,255,255,.08);
   }
 
-  /* Right card */
-  .card{
-    background: linear-gradient(180deg,#0f1a22,#0b1116);
-    border:1px solid #14212b;
-    border-radius: var(--rad);
-    box-shadow: var(--shadow);
-    padding: 14px 16px;
-    display:grid;gap:14px;
+  /* Info deck (slides) */
+  .deck{
+    background:var(--panel);
+    border-radius:14px;
+    box-shadow: inset 0 0 0 1px #0d1821, 0 18px 40px var(--shadow);
+    padding:14px 16px 10px; position:relative; overflow:hidden;
+    min-height:168px;
   }
-
-  .kv{
-    display:grid;
-    grid-template-columns: 1fr 1fr;
-    gap:10px 22px;
-  }
-  .k{ color:var(--muted); }
-  .k::after{ content:" :"; }
-  .v{ font-weight:700; }
-
-  /* Slide section */
-  .slides{
-    position:relative;min-height:122px;
-  }
+  .slides{ position:relative; }
   .slide{
-    position:absolute;inset:0;
-    opacity:0;transform: translateY(8px);
-    transition: opacity .45s ease, transform .45s ease;
-    display:grid;gap:10px;
+    position:absolute; inset:0; padding:6px 4px 6px;
+    opacity:0; transform:translateY(8px); transition:opacity .35s ease, transform .35s ease;
+    display:none;
   }
-  .slide.active{ opacity:1; transform:none; }
-  .sectionTitle{
-    font-weight:800;color:#cce6ff;letter-spacing:.4px;
-    margin-bottom:2px;
+  .slide.active{ display:block; opacity:1; transform:none; }
+
+  .grid{
+    display:grid; grid-template-columns: 140px 1fr;
+    row-gap:8px; column-gap:12px;
+  }
+  .lab{ color:var(--mut); text-align:left; }
+  .val{ font-weight:650; }
+
+  .twoCol{
+    display:grid; grid-template-columns: 1fr 1fr; gap:10px 24px;
   }
 
-  .fine{ font-size:12px;color:var(--muted) }
-  .unit{ font-weight:600; color:var(--muted) }
-
-  /* Progress bar under slides */
-  .progress{
-    position:absolute;left:0;right:0;bottom:-8px;height:3px;border-radius:2px;
-    background:#0b1116;border:1px solid #132029;
-    overflow:hidden;
+  .section{
+    margin:6px 2px 10px; font-weight:800; color:#cfe7ff; letter-spacing:.2px;
   }
-  .bar{height:100%;width:0;background:linear-gradient(90deg,#2c99ff,#59c1ff)}
 
-  /* Compact tweaks for long titles */
-  .title.long{ font-size:24px; line-height:1.15 }
+  /* Progress bar */
+  .bar{
+    position:absolute; left:0; bottom:0; height:3px; width:0%;
+    background:linear-gradient(90deg, var(--accent), #87c7ff);
+    box-shadow:0 0 10px #3aa0ff;
+    transition: none;
+  }
 
-  /* Media queries for very small overlays */
-  @media (max-width:520px){
-    :root{ --w: 520px }
-    .title{ font-size:24px }
+  /* Small helpers */
+  .mono{ font-variant-numeric: tabular-nums; }
+  .unit{ color:var(--mut); font-weight:500; margin-left:4px; }
+
+  /* Tighter look on narrow displays */
+  @media (max-width:620px){
+    :root{ --w: 520px; }
+    .grid{ grid-template-columns: 120px 1fr; }
   }
 </style>
 </head>
 <body>
-<div class="widget" id="app">
-  <div class="title" id="title">—</div>
+  <div class="widget">
+    <div class="title"><h1 id="title">—</h1></div>
 
-  <div class="row">
-    <div class="flagCol">
-      <img id="flag" alt="Flag" class="flag" src="" />
-      <div class="pill">LIVE</div>
-    </div>
-
-    <div class="card">
-      <div class="kv" id="metrics">
-        <div><span class="k">UTC</span> <span class="v" id="utc">—</span></div>
-        <div><span class="k">Date</span> <span class="v" id="date">—</span></div>
-        <div><span class="k">Speed</span> <span class="v" id="speed">—</span> <span class="unit">km/s</span></div>
-        <div><span class="k">Elev</span> <span class="v" id="alt">—</span> <span class="unit">km</span></div>
+    <div class="row">
+      <div class="flagCol">
+        <img id="flag" class="flag" alt="flag" src="" />
+        <div class="live">LIVE</div>
       </div>
 
-      <div class="slides">
-        <!-- Slide A: Life & Age -->
-        <div class="slide" id="slideA">
-          <div class="sectionTitle">Life &amp; Age</div>
-          <div class="kv">
-            <div><span class="k">Life Expectancy</span> <span class="v" id="life">—</span> <span class="unit fine">yrs</span></div>
-            <div><span class="k">Median Age</span> <span class="v" id="median">—</span> <span class="unit fine">yrs</span></div>
-            <div><span class="k">Male</span> <span class="v" id="male">—</span> <span class="unit fine">yrs</span></div>
-            <div><span class="k">Female</span> <span class="v" id="female">—</span> <span class="unit fine">yrs</span></div>
+      <div class="deck">
+        <div class="slides">
+          <!-- Slide A: NOW -->
+          <div class="slide active" id="slide-now">
+            <div class="grid">
+              <div class="lab">UTC :</div><div class="val mono" id="utc">—</div>
+              <div class="lab">Date :</div><div class="val mono" id="date">—</div>
+              <div class="lab">Speed :</div><div class="val mono"><span id="speed">—</span><span class="unit">km/s</span></div>
+              <div class="lab">Elev :</div><div class="val mono"><span id="elev">—</span><span class="unit">km</span></div>
+            </div>
+          </div>
+
+          <!-- Slide B: Country info -->
+          <div class="slide" id="slide-country">
+            <div class="section">Country Information</div>
+            <div class="grid">
+              <div class="lab">Capital :</div><div class="val" id="capital">—</div>
+              <div class="lab">Density :</div><div class="val mono"><span id="density">—</span><span class="unit">ppl/km²</span></div>
+              <div class="lab">Poverty :</div><div class="val mono" id="poverty">—</div>
+            </div>
+          </div>
+
+          <!-- Slide C: Life & Age -->
+          <div class="slide" id="slide-life">
+            <div class="section">Life &amp; Age</div>
+            <div class="grid twoCol">
+              <div class="lab">Life Expectancy :</div><div class="val mono"><span id="lifeExp">—</span><span class="unit">yrs</span></div>
+              <div class="lab">Median Age :</div><div class="val mono"><span id="medianAge">—</span><span class="unit">yrs</span></div>
+              <div class="lab">Male :</div><div class="val mono"><span id="male">—</span><span class="unit">yrs</span></div>
+              <div class="lab">Female :</div><div class="val mono"><span id="female">—</span><span class="unit">yrs</span></div>
+            </div>
           </div>
         </div>
 
-        <!-- Slide B: Country Information -->
-        <div class="slide" id="slideB">
-          <div class="sectionTitle">Country Information</div>
-          <div class="kv">
-            <div><span class="k">Capital</span> <span class="v" id="capital">—</span></div>
-            <div><span class="k">Density</span> <span class="v" id="density">—</span> <span class="unit">ppl/km²</span></div>
-            <div><span class="k">Poverty</span> <span class="v" id="poverty">—</span></div>
-          </div>
-        </div>
-
-        <div class="progress"><div class="bar" id="bar"></div></div>
+        <div class="bar" id="bar"></div>
       </div>
     </div>
   </div>
-</div>
 
 <script>
-const WORKER = "https://iss-live.charlesleahy.workers.dev";
-const $ = sel => document.querySelector(sel);
-const fmt = {
-  pad:(n)=> String(n).padStart(2,'0'),
-  d:(d)=> `${d.getUTCFullYear()}-${fmt.pad(d.getUTCMonth()+1)}-${fmt.pad(d.getUTCDate())}`,
-  t:(d)=> `${fmt.pad(d.getUTCHours())}:${fmt.pad(d.getUTCMinutes())}:${fmt.pad(d.getUTCSeconds())} UTC`,
-  num:(x,dp=2)=> (x==null||isNaN(x))?"—":Number(x).toFixed(dp),
-};
+(function(){
+  const BASE = 'https://iss-live.charlesleahy.workers.dev';
+  const ROTATE_MS = 6500;        // time each slide is shown
+  const slides = ['slide-now','slide-country','slide-life'];
+  let slideIdx = 0;
+  const $ = id => document.getElementById(id);
 
-// DOM refs
-const titleEl = $("#title");
-const utcEl   = $("#utc");
-const dateEl  = $("#date");
-const speedEl = $("#speed");
-const altEl   = $("#alt");
-const flagImg = $("#flag");
-
-// slides + progress
-const slides = [$("#slideA"), $("#slideB")];
-let slideIndex = 0;
-let barTimer = null;
-
-// helper: animate progress
-function animateBar(ms){
-  const bar = $("#bar");
-  bar.style.transition = "none";
-  bar.style.width = "0%";
-  requestAnimationFrame(()=>{
-    requestAnimationFrame(()=>{
-      bar.style.transition = `width ${ms}ms linear`;
-      bar.style.width = "100%";
-    });
-  });
-}
-
-// soft-set text
-function setTxt(el, val){ el.textContent = (val ?? "—"); }
-
-// ocean icon data-URL (simple wave)
-const WAVE = 'data:image/svg+xml;utf8,' + encodeURIComponent(`
-<svg xmlns="http://www.w3.org/2000/svg" width="86" height="58" viewBox="0 0 86 58">
-  <rect width="86" height="58" rx="8" fill="#0b1116"/>
-  <g stroke="#5fc8ff" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M10 30c6 6 12 6 18 0s12-6 18 0 12 6 18 0 12-6 18 0"/>
-    <path d="M10 42c6 6 12 6 18 0s12-6 18 0 12 6 18 0 12-6 18 0"/>
-  </g>
-</svg>`);
-
-// fetch JSON with timeout
-async function getJSON(url, ms=8000){
-  const ctl = new AbortController();
-  const t = setTimeout(()=>ctl.abort(), ms);
-  const r = await fetch(url, {signal: ctl.signal, headers:{'user-agent':'iss-overlay'}}).catch(()=>null);
-  clearTimeout(t);
-  if(!r || !r.ok) throw new Error("fetch failed "+url);
-  return r.json();
-}
-
-// life expectancy from World Bank (CORS OK)
-async function lifeExpectancy(iso2){
-  try{
-    const base = `https://api.worldbank.org/v2/country/${iso2}/indicator/`;
-    const [a,b,c] = await Promise.all([
-      getJSON(base + "SP.DYN.LE00.IN?format=json&per_page=1"),
-      getJSON(base + "SP.DYN.LE00.MA.IN?format=json&per_page=1"),
-      getJSON(base + "SP.DYN.LE00.FE.IN?format=json&per_page=1"),
-    ]);
-    const take = (arr)=> Array.isArray(arr) && arr[1] && arr[1][0] ? arr[1][0].value : null;
-    return {
-      life: take(a),
-      male: take(b),
-      female: take(c),
-      median: null, // not available from WB in same series
-    };
-  }catch(e){ return {life:null,male:null,female:null,median:null}; }
-}
-
-function setTitle(region, country, ocean){
-  let t = ocean ? `${ocean}` : `${region}${country?`, ${country}`:''}`;
-  titleEl.textContent = t || "—";
-  titleEl.classList.toggle("long", t.length > 28);
-}
-
-function setFlag(iso2, ocean){
-  if(ocean){ flagImg.src = WAVE; return; }
-  if(!iso2){ flagImg.src = WAVE; return; }
-  const lo = iso2.toLowerCase();
-  flagImg.src = `https://flagcdn.com/w80/${lo}.png`;
-  flagImg.onerror = ()=>{ flagImg.src = WAVE; };
-}
-
-function showSlide(i){
-  slides.forEach((s,idx)=> s.classList.toggle('active', idx===i));
-}
-
-async function refresh(){
-  // 1) ISS position
-  const iss = await getJSON(`${WORKER}/iss`).catch(()=>null);
-  if(!iss){ return; }
-
-  // 2) Reverse geocode where it is
-  const rg = await getJSON(`${WORKER}/rg?lat=${iss.lat}&lon=${iss.lon}`).catch(()=>null);
-
-  const ocean = rg && rg.ocean ? rg.ocean : null;
-  const iso2  = rg && rg.iso2   ? rg.iso2  : null;
-  const where = {
-    region: rg && rg.region || (ocean ? ocean : "—"),
-    country: rg && rg.country || (ocean ? "" : "—"),
-    ocean
-  };
-
-  // 3) Country facts
-  let facts = {capital:null,density:null,poverty:null};
-  if(iso2){
-    facts = await getJSON(`${WORKER}/facts?iso2=${iso2}`).catch(()=>facts);
+  function safe(n, d='—'){
+    return (n===null || n===undefined || n!==n || n==='' ) ? d : n;
+  }
+  function fmtNum(n, dp=0){
+    if(n===null || n===undefined || n!==n) return '—';
+    return Number(n).toLocaleString('en-US',{ maximumFractionDigits: dp, minimumFractionDigits: dp });
   }
 
-  // 4) Life expectancy (WB)
-  const life = iso2 ? await lifeExpectancy(iso2) : {life:null,male:null,female:null,median:null};
+  // Progress bar animation
+  let barTimer;
+  function runBar(){
+    const bar = $('bar');
+    bar.style.transition = 'none';
+    bar.style.width = '0%';
+    // async let layout settle
+    requestAnimationFrame(()=>{
+      requestAnimationFrame(()=>{
+        bar.style.transition = `width ${ROTATE_MS}ms linear`;
+        bar.style.width = '100%';
+      });
+    });
+    clearTimeout(barTimer);
+    barTimer = setTimeout(()=>{}, ROTATE_MS);
+  }
 
-  // ----- Render -----
-  const now = new Date();
-  setTitle(where.region, where.country, where.ocean);
-  setFlag(iso2, where.ocean);
+  function showSlide(i){
+    slideIdx = i % slides.length;
+    slides.forEach((id, k)=>{
+      const node = $(id);
+      node.classList.toggle('active', k===slideIdx);
+    });
+    runBar();
+  }
 
-  setTxt(utcEl,  fmt.t(now).replace(' UTC',''));
-  setTxt(dateEl, fmt.d(now));
-  setTxt(speedEl, fmt.num(iss.speed_kps,2));
-  setTxt(altEl,   fmt.num(iss.alt_km,0));
+  setInterval(()=>showSlide(slideIdx+1), ROTATE_MS);
 
-  // slide A: life & age
-  setTxt($("#life"),   life.life ? fmt.num(life.life,1) : "—");
-  setTxt($("#male"),   life.male ? fmt.num(life.male,1) : "—");
-  setTxt($("#female"), life.female ? fmt.num(life.female,1) : "—");
-  setTxt($("#median"), life.median ? fmt.num(life.median,1) : "—");
+  // realtime UTC clock tick
+  function tickUTC(){
+    const d = new Date();
+    $('utc').textContent = d.toISOString().slice(11,19) + ' UTC';
+  }
+  setInterval(tickUTC, 1000);
+  tickUTC();
 
-  // slide B: facts
-  setTxt($("#capital"), facts.capital || "—");
-  setTxt($("#density"), (facts.density||"—").toString().replace('ppl/km^2',''));
-  setTxt($("#poverty"), facts.poverty || "—");
-}
+  // Load data
+  (async function init(){
+    try{
+      // 1) ISS snapshot
+      const iss = await fetchJSON(`${BASE}/iss`);
+      const lat = iss.lat, lon = iss.lon;
+      $('speed').textContent = fmtNum(iss.speed_kps,2);
+      $('elev').textContent  = fmtNum(iss.alt_km,0);
+      $('date').textContent  = new Date().toISOString().slice(0,10);
 
-// rotate slides
-function startSlides(){
-  let ms = 9000; // per slide
-  showSlide(slideIndex);
-  animateBar(ms);
-  if(barTimer) clearInterval(barTimer);
-  barTimer = setInterval(()=>{
-    slideIndex = (slideIndex+1)%slides.length;
-    showSlide(slideIndex);
-    animateBar(ms);
-  }, ms);
-}
+      // 2) Reverse geocode
+      const rg  = await fetchJSON(`${BASE}/rg?lat=${lat.toFixed(3)}&lon=${lon.toFixed(3)}`);
+      const iso2 = rg.iso2 || null;
+      const title = (rg.region ? `${rg.region}, ` : '') + (rg.country || rg.ocean || '—');
+      $('title').textContent = title;
 
-async function boot(){
-  await refresh();
-  startSlides();
-  // refresh ISS metrics + facts periodically
-  setInterval(refresh, 12000);
-}
-boot();
+      // flag or ocean icon
+      setFlag(iso2, rg.ocean);
+
+      // 3) Country facts
+      if(iso2){
+        const facts = await fetchJSON(`${BASE}/facts?iso2=${iso2}`).catch(()=>({}));
+        $('capital').textContent = safe(facts.capital);
+        $('density').textContent = (facts.density && /\d/.test(facts.density))
+          ? facts.density.replace(' ppl/km²','') : '—';
+        $('poverty').textContent = safe(facts.poverty);
+      }
+
+      // 4) Life & Age (if your worker exposes it; else keep dashes)
+      //   If your Worker has /life?iso2=XX returning:
+      //   { lifeExp, median, male, female }
+      //   uncomment the block below:
+      /*
+      if(iso2){
+        const life = await fetchJSON(`${BASE}/life?iso2=${iso2}`).catch(()=>({}));
+        if(life){
+          $('lifeExp').textContent  = fmtNum(life.lifeExp,1);
+          $('medianAge').textContent= fmtNum(life.median,1);
+          $('male').textContent     = fmtNum(life.male,1);
+          $('female').textContent   = fmtNum(life.female,1);
+        }
+      }
+      */
+
+      // If country info (facts) didn’t load, skip that slide to keep things tidy
+      tidySlides();
+      runBar();
+    }catch(err){
+      console.error(err);
+      tidySlides();
+      runBar();
+    }
+  })();
+
+  async function fetchJSON(u, timeout=7000){
+    const ctrl = new AbortController();
+    const t = setTimeout(()=>ctrl.abort(), timeout);
+    const r = await fetch(u, {signal: ctrl.signal, headers: {'user-agent':'iss-widget'}});
+    clearTimeout(t);
+    if(!r.ok) throw new Error(`HTTP ${r.status} for ${u}`);
+    return r.json();
+  }
+
+  function setFlag(iso2, ocean){
+    const el = $('flag');
+    if(ocean){
+      el.src = 'https://img.icons8.com/fluency/96/sea-waves.png';
+      el.alt = 'Ocean';
+      return;
+    }
+    if(iso2){
+      const cc = iso2.toLowerCase();
+      el.src = `https://flagcdn.com/w160/${cc}.png`;
+      el.srcset = `https://flagcdn.com/w160/${cc}.png 1x, https://flagcdn.com/w320/${cc}.png 2x`;
+      el.alt = iso2 + ' flag';
+    }else{
+      el.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="96" height="64"><rect width="96" height="64" fill="%230c141b"/></svg>';
+      el.alt = '';
+    }
+  }
+
+  function tidySlides(){
+    // If an entire slide has only dashes, hide it from rotation
+    const checks = {
+      'slide-country': ['capital','density','poverty'],
+      'slide-life':    ['lifeExp','medianAge','male','female']
+    };
+    const keep = ['slide-now'];
+    Object.entries(checks).forEach(([id, ids])=>{
+      const any = ids.some(k => (($(k).textContent || '').trim() !== '—'));
+      if(any) keep.push(id);
+    });
+    // Rebuild slides array in place
+    slides.length = 0;
+    keep.forEach(id=>slides.push(id));
+
+    // Toggle visibility accordingly
+    ['slide-country','slide-life'].forEach(id=>{
+      $(id).style.display = keep.includes(id) ? 'block' : 'none';
+      $(id).classList.remove('active');
+    });
+    // Ensure we start on NOW and then rotate through what’s left
+    showSlide(0);
+  }
+})();
 </script>
 </body>
 </html>
