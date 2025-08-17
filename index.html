@@ -7,73 +7,49 @@
 <link rel="preconnect" href="https://flagcdn.com">
 <style>
   :root{
-    --bg:#0e161c;
+    --bg:#0a1218;
     --panel:#0f1b23;
     --card:#0b151c;
     --muted:#8aa9c6;
     --text:#e9f3ff;
-    --accent:#4db2ff;
     --shadow:0 14px 40px rgba(0,0,0,.45);
     --radius:18px;
   }
-  html,body{height:100%;margin:0;background:#0a1218;font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:var(--text)}
+  html,body{height:100%;margin:0;background:var(--bg);font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:var(--text)}
   *{box-sizing:border-box}
   .wrap{padding:18px}
   .widget{
-    width: 560px; max-width: 96vw;
-    background: linear-gradient(180deg,#101b24,#0c151b);
-    border: 1px solid #0b2433;
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
-    padding: 18px 18px 16px 18px;
+    width:560px; max-width:96vw;
+    background:linear-gradient(180deg,#101b24,#0c151b);
+    border:1px solid #0b2433;border-radius:var(--radius);
+    box-shadow:var(--shadow); padding:18px;
   }
   .title{
-    display:grid; place-items:center;
-    height:64px;
-    background: radial-gradient(120% 120% at -10% -20%,#0e2230 0,#0c151b 60%);
-    border:1px solid #123246;
-    border-radius: 14px;
-    font-weight: 800; letter-spacing:.3px; font-size:28px;
+    display:grid;place-items:center;height:64px;
+    background:radial-gradient(120% 120% at -10% -20%,#0e2230 0,#0c151b 60%);
+    border:1px solid #123246;border-radius:14px;
+    font-weight:800;letter-spacing:.3px;font-size:28px;
   }
-  .row{
-    margin-top:14px;
-    display:grid; grid-template-columns:118px 1fr; gap:14px;
-  }
+  .row{margin-top:14px;display:grid;grid-template-columns:118px 1fr;gap:14px}
   .flagBox{
-    background: var(--card);
-    border:1px solid #122738;
-    border-radius: 14px;
-    padding: 12px 12px 56px 12px; /* leave room for LIVE badge */
-    position: relative;
-    display:grid; place-items:center;
-    min-height: 136px;
+    background:var(--card);border:1px solid #122738;border-radius:14px;
+    padding:12px 12px 56px 12px;position:relative;display:grid;place-items:center;min-height:136px
   }
   .flag{
-    width: 88px; height: 58px; object-fit: cover; border-radius: 8px;
-    display:block;
+    width:92px;height:64px;object-fit:cover;border-radius:8px;display:block
   }
   .live{
-    position:absolute; left:12px; bottom:12px;
-    background:linear-gradient(#e22,#a40);
-    border-radius: 12px; padding:7px 14px;
-    font-weight:800; color:#fff; letter-spacing:.6px;
-    border:1px solid rgba(0,0,0,.35); box-shadow: 0 6px 20px rgba(0,0,0,.35);
-    text-transform: uppercase; font-size:14px;
-    display:flex; align-items:center; gap:8px;
+    position:absolute;left:12px;bottom:12px;background:linear-gradient(#e22,#a40);
+    border-radius:12px;padding:7px 14px;font-weight:800;color:#fff;letter-spacing:.6px;
+    border:1px solid rgba(0,0,0,.35);box-shadow:0 6px 20px rgba(0,0,0,.35);
+    text-transform:uppercase;font-size:14px;display:flex;align-items:center;gap:8px
   }
   .dot{width:8px;height:8px;background:#fff;border-radius:999px;box-shadow:0 0 10px #fff}
   .card{
-    background: var(--card);
-    border:1px solid #122738;
-    border-radius: 14px;
-    padding: 16px 18px;
-    display:grid; gap:10px;
-    min-height: 136px;
+    background:var(--card);border:1px solid #122738;border-radius:14px;
+    padding:16px 18px;display:grid;gap:10px;min-height:136px
   }
-  .kv{
-    display:grid; grid-template-columns:120px 1fr; align-items:baseline;
-    font-size:16px; line-height:1.15;
-  }
+  .kv{display:grid;grid-template-columns:120px 1fr;align-items:baseline;font-size:16px;line-height:1.15}
   .k{color:var(--muted)}
   .v{font-weight:700}
 </style>
@@ -110,31 +86,50 @@ const els = {
   alt:   document.getElementById('alt'),
 };
 
-// curated ocean photos (stable links)
-const OCEAN_IMG = {
-  "Pacific Ocean": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/15/Pacific_Ocean_-_Fiji_%28Unsplash%29.jpg/512px-Pacific_Ocean_-_Fiji_%28Unsplash%29.jpg",
-  "Atlantic Ocean": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/20/Atlantic_Ocean_view_from_madeira.jpg/512px-Atlantic_Ocean_view_from_madeira.jpg",
-  "Indian Ocean": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9a/Indian_Ocean_Maldives.jpg/512px-Indian_Ocean_Maldives.jpg",
-  "Southern Ocean": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9a/Southern_Ocean_-_iceberg.jpg/512px-Southern_Ocean_-_iceberg.jpg",
-  "Arctic Ocean": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/79/Arctic_Ocean_ice.jpg/512px-Arctic_Ocean_ice.jpg"
-};
+// robust ocean photo provider + bulletproof fallback
+function oceanPhoto(name){
+  // Unsplash Source: returns a valid ocean photo via 302 redirect (hotlink ok)
+  const q = encodeURIComponent(`${name} ocean,sea,water`);
+  return `https://source.unsplash.com/160x110/?${q}`;
+}
+const FALLBACK_SVG =
+  'data:image/svg+xml;utf8,' +
+  encodeURIComponent(
+    `<svg xmlns='http://www.w3.org/2000/svg' width='160' height='110'>
+       <defs>
+         <linearGradient id='g' x1='0' x2='0' y1='0' y2='1'>
+           <stop offset='0' stop-color='#2a75ff'/><stop offset='1' stop-color='#0b2136'/>
+         </linearGradient>
+       </defs>
+       <rect width='100%' height='100%' fill='url(#g)'/>
+       <g fill='white' opacity='.9'>
+         <path d='M15 75c10 0 10-10 20-10s10 10 20 10 10-10 20-10 10 10 20 10' stroke='white' stroke-width='4' fill='none'/>
+         <path d='M15 92c10 0 10-10 20-10s10 10 20 10 10-10 20-10 10 10 20 10' stroke='white' stroke-width='4' fill='none'/>
+       </g>
+     </svg>`
+  );
+
+// ensure onerror fallback always shows something
+els.flag.addEventListener('error', () => {
+  els.flag.src = FALLBACK_SVG;
+}, {once:false});
 
 function fmt(num, unit){
   return `${num.toLocaleString('en-US',{maximumFractionDigits: (unit==='km' ? 0 : 2)})} ${unit}`;
 }
 
 function setFlagOrPhoto(meta){
-  // country flag
+  // show national flag for land
   if (meta.iso2){
     const iso = meta.iso2.toLowerCase();
     els.flag.src = `https://flagcdn.com/w80/${iso}.png`;
     els.flag.alt = `${meta.country} flag`;
     return;
   }
-  // ocean photo fallback
-  const name = meta.ocean || "Pacific Ocean";
-  els.flag.src = OCEAN_IMG[name] || OCEAN_IMG["Pacific Ocean"];
-  els.flag.alt = name;
+  // ocean photo for water
+  const oceanName = meta.ocean || 'Ocean';
+  els.flag.src = oceanPhoto(oceanName);
+  els.flag.alt = oceanName;
 }
 
 async function getJSON(url, timeoutMs=7000){
@@ -148,20 +143,16 @@ async function getJSON(url, timeoutMs=7000){
 }
 
 async function fetchData(){
-  // 1) ISS
   const iss = await getJSON(`${API}/iss`);
-  const lat = iss.lat, lon = iss.lon;
-  // 2) Reverse geocode
+  const {lat, lon} = iss;
+
   const rg  = await getJSON(`${API}/rg?lat=${lat}&lon=${lon}`);
 
-  // place title (centered)
   const title = rg.ocean ? rg.ocean : (rg.region ? `${rg.region}, ${rg.country}` : rg.country);
   els.place.textContent = title || "—";
 
-  // image
   setFlagOrPhoto({iso2: rg.iso2 || null, country: rg.country, ocean: rg.ocean || null});
 
-  // stat lines
   const now = new Date();
   els.utc.textContent   = now.toISOString().slice(11,19) + " UTC";
   els.date.textContent  = now.toISOString().slice(0,10);
@@ -169,9 +160,9 @@ async function fetchData(){
   els.alt.textContent   = fmt(iss.alt_km,  "km");
 }
 
-// initial + refresh
+// initial + auto refresh
 fetchData().catch(console.error);
-setInterval(()=>fetchData().catch(console.error), 12000); // refresh every 12s
+setInterval(()=>fetchData().catch(console.error), 12000);
 </script>
 </body>
 </html>
