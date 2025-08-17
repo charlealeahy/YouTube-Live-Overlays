@@ -57,164 +57,143 @@
 </div>
 
 <script>
-/* ---------- settings ---------- */
+/* ===== settings ===== */
 const REFRESH_MS = 5000;
-const TEXT_THRESH_1 = 26, TEXT_THRESH_2 = 40;
+const TEXT1 = 26, TEXT2 = 40;
 
-/* ---------- helpers ---------- */
+/* ===== helpers ===== */
 const el = id => document.getElementById(id);
 const fmt  = new Intl.NumberFormat('en-US',{maximumFractionDigits:2});
 const fmt3 = new Intl.NumberFormat('en-US',{maximumFractionDigits:3});
 const pct  = x => (x==null||isNaN(x)?'—':(Math.round(x*10)/10).toFixed(1)+'%');
 
 function fitTwoLine(top,bottom){
-  const box = el('loc');
-  box.classList.remove('small','tiny');
+  const box = el('loc'); box.classList.remove('small','tiny');
   el('locTop').textContent = top || '—';
   el('locBottom').textContent = bottom || '—';
   const total = (top||'').length + (bottom||'').length;
-  if(total > TEXT_THRESH_1 && total <= TEXT_THRESH_2) box.classList.add('small');
-  if(total > TEXT_THRESH_2) box.classList.add('tiny');
+  if(total > TEXT1 && total <= TEXT2) box.classList.add('small');
+  if(total > TEXT2) box.classList.add('tiny');
 }
 
-/* fetch with timeout + retries */
-async function getJSON(url, {timeout=7000, retries=2}={}){
-  for(let attempt=0; attempt<=retries; attempt++){
+async function getText(url,{timeout=7000,retries=1}={}) {
+  for(let a=0;a<=retries;a++){
     try{
-      const ctrl = new AbortController();
-      const t = setTimeout(()=>ctrl.abort(), timeout);
-      const r = await fetch(url, {signal: ctrl.signal, cache:'no-store'});
-      clearTimeout(t);
-      if(r.ok){ return await r.json(); }
+      const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),timeout);
+      const r=await fetch(url,{signal:ctrl.signal,cache:'no-store'}); clearTimeout(t);
+      if(r.ok) return await r.text();
     }catch(e){}
-    await new Promise(res=>setTimeout(res, 400+attempt*300));
+    await new Promise(r=>setTimeout(r,400+a*300));
   }
-  throw new Error('fetch failed: '+url);
+  throw new Error('text fetch failed '+url);
+}
+async function getJSON(url,opts){ return JSON.parse(await getText(url,opts)); }
+
+/* Robust ISS position with multiple fallbacks (no keys) */
+async function getISS(){
+  const ts = Date.now();
+  // Primary
+  try{ return await getJSON(`https://api.wheretheiss.at/v1/satellites/25544?ts=${ts}`, {timeout:6000,retries:1}); }catch(e){}
+  // CORS proxy 1
+  try{ return await getJSON(`https://cors.isomorphic-git.org/https://api.wheretheiss.at/v1/satellites/25544?ts=${ts}`, {timeout:6000}); }catch(e){}
+  // r.jina.ai (fetches as text)
+  try{ return JSON.parse(await getText(`https://r.jina.ai/http://api.wheretheiss.at/v1/satellites/25544`)); }catch(e){}
+  // Open-Notify via proxy (coords only)
+  try{
+    const on = await getJSON(`https://cors.isomorphic-git.org/https://api.open-notify.org/iss-now.json`, {timeout:6000});
+    return {
+      latitude:  parseFloat(on?.iss_position?.latitude),
+      longitude: parseFloat(on?.iss_position?.longitude),
+      altitude:  (last.altKm ?? 420),                    // fallback
+      velocity:  ((last.speedKps ?? 7.66) * 3600)        // km/h
+    };
+  }catch(e){}
+  throw new Error('All ISS sources failed');
 }
 
-/* robust reverse geocode (no keys) */
+/* Reverse geocode (reliable chain, no keys) */
 async function reverseGeocode(lat, lon){
-  // 1) Open-Meteo (very reliable)
+  // 1) Open-Meteo
   try{
     const j = await getJSON(`https://geocoding-api.open-meteo.com/v1/reverse?latitude=${lat}&longitude=${lon}&language=en`);
     const r = j?.results?.[0];
-    if(r){
-      return {
-        countryName: r.country || null,
-        iso2: (r.country_code || '').toUpperCase() || null,
-        region: r.admin1 || r.admin2 || r.name || null,
-        oceanName: null
-      };
-    }
+    if(r){ return {countryName:r.country||null, iso2:(r.country_code||'').toUpperCase()||null, region:r.admin1||r.admin2||r.name||null, oceanName:null}; }
   }catch(e){}
-
   // 2) BigDataCloud (ocean detection)
   try{
     const j = await getJSON(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`);
-    let ocean = null;
-    const inf = j?.localityInfo?.informative || [];
-    const o = inf.find(x => /ocean/i.test(x.description||x.name||'')); if(o) ocean = o.name || o.description;
-    if(j.countryName || ocean){
-      return {countryName:j.countryName||null, iso2:j.countryCode||null, region:j.principalSubdivision||j.locality||null, oceanName:ocean};
-    }
+    let ocean=null; const inf=j?.localityInfo?.informative||[]; const o=inf.find(x=>/ocean/i.test(x.description||x.name||'')); if(o) ocean=o.name||o.description;
+    if(j.countryName || ocean){ return {countryName:j.countryName||null, iso2:j.countryCode||null, region:j.principalSubdivision||j.locality||null, oceanName:ocean}; }
   }catch(e){}
-
-  // 3) maps.co (Nominatim mirror)
+  // 3) maps.co
   try{
-    const j = await getJSON(`https://geocode.maps.co/reverse?lat=${lat}&lon=${lon}`);
-    const a = j.address || {};
+    const j = await getJSON(`https://geocode.maps.co/reverse?lat=${lat}&lon=${lon}`); const a=j.address||{};
     return {countryName:a.country||null, iso2:(a.country_code||'').toUpperCase()||null, region:a.state||a.county||a.region||null, oceanName:a.ocean||a.water||null};
   }catch(e){}
-
-  // 4) OSM direct
+  // 4) OSM
   try{
-    const j = await getJSON(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`);
-    const a = j.address || {};
+    const j = await getJSON(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`); const a=j.address||{};
     return {countryName:a.country||null, iso2:(a.country_code||'').toUpperCase()||null, region:a.state||a.county||a.region||null, oceanName:a.ocean||a.water||null};
   }catch(e){}
-
   return {countryName:null, iso2:null, region:null, oceanName:null};
 }
 
-/* next sunrise/sunset across today+tomorrow (UTC-safe display) */
+/* Next sunrise/sunset across today+tomorrow */
 function nextSunEvent(lat, lon, now){
-  const evts = [];
-  for(let d=0; d<2; d++){
-    const day = new Date(now.getTime()+d*86400000);
-    const t = SunCalc.getTimes(day, lat, lon);
-    evts.push({name:'Sunrise', t:t.sunrise});
-    evts.push({name:'Sunset',  t:t.sunset});
-  }
+  const evts=[]; for(let d=0; d<2; d++){ const day=new Date(now.getTime()+d*86400000); const t=SunCalc.getTimes(day,lat,lon); evts.push({name:'Sunrise',t:t.sunrise},{name:'Sunset',t:t.sunset}); }
   return evts.filter(e=>e.t && e.t>now).sort((a,b)=>a.t-b.t)[0] || null;
 }
 
-/* keep last good values to survive transient API hiccups */
+/* Persist last good state */
 let last = {lat:null, lon:null, altKm:null, speedKps:null, iso2:null, country:null, region:null};
 
 async function tick(){
   try{
-    // 1) ISS state (primary)
-    let iss=null;
-    try{
-      iss = await getJSON('https://api.wheretheiss.at/v1/satellites/25544?'+Date.now(), {timeout:6000,retries:1});
-    }catch(e){
-      // backup: Open-Notify (coords only)
-      const on = await getJSON('https://api.open-notify.org/iss-now.json', {timeout:6000,retries:1});
-      iss = {
-        latitude:  parseFloat(on?.iss_position?.latitude),
-        longitude: parseFloat(on?.iss_position?.longitude),
-        altitude:  last.altKm,   // keep previous if primary failed
-        velocity:  (last.speedKps? last.speedKps*3600 : 27600) // km/h approx
-      };
-    }
-
+    // ISS position (with fallbacks)
+    const iss = await getISS();
     const lat = Number(iss.latitude), lon = Number(iss.longitude);
-    const altKm = Number(iss.altitude);
-    const speedKps = Number(iss.velocity)/3600;
+    const altKm = Number(iss.altitude), speedKps = Number(iss.velocity)/3600;
 
     if(!Number.isNaN(lat) && !Number.isNaN(lon)){ last.lat=lat; last.lon=lon; }
     if(!Number.isNaN(altKm)) { last.altKm=altKm; }
     if(!Number.isNaN(speedKps)) { last.speedKps=speedKps; }
 
-    const useLat = last.lat, useLon = last.lon;
+    const useLat=last.lat, useLon=last.lon;
 
-    // 2) Reverse geocode
+    // Geocode (if we have coords)
     let place = {countryName:last.country, iso2:last.iso2, region:last.region, oceanName:null};
     if(useLat!=null && useLon!=null){
       place = await reverseGeocode(useLat, useLon);
-      last.country = place.countryName; last.iso2 = place.iso2; last.region = place.region;
+      last.country=place.countryName; last.iso2=place.iso2; last.region=place.region;
     }
 
-    // 3) Heading
+    // Two-line heading
     const overOcean = !place.countryName && !!place.oceanName;
     if(overOcean){ fitTwoLine(place.oceanName || 'Open Ocean', ''); }
     else if(place.region && place.countryName){ fitTwoLine(place.region, place.countryName); }
     else { fitTwoLine(place.countryName || '—', ''); }
 
-    // 4) Flag
+    // Flag
     const flagEl = el('flag');
-    if(place.iso2){ flagEl.src = `https://flagcdn.com/w80/${place.iso2.toLowerCase()}.png`; flagEl.style.opacity='1'; }
+    if(place.iso2){ flagEl.src=`https://flagcdn.com/w80/${place.iso2.toLowerCase()}.png`; flagEl.style.opacity='1'; }
     else { flagEl.removeAttribute('src'); flagEl.style.opacity='0.25'; }
 
-    // 5) Next sun event
-    const now = new Date();
-    const next = (useLat!=null && useLon!=null) ? nextSunEvent(useLat, useLon, now) : null;
-    const pad = n => String(n).padStart(2,'0');
-    const toUTCDate = d => `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`;
-    const toUTCTime = d => `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
-    if(next){ el('eventTitle').textContent = `Next: ${next.name}`; el('utc').textContent = `${toUTCTime(next.t)} UTC`; el('date').textContent = toUTCDate(next.t); }
-    else    { el('eventTitle').textContent = 'Next: —'; el('utc').textContent = `${toUTCTime(now)} UTC`; el('date').textContent = toUTCDate(now); }
+    // Next sun event
+    const now=new Date(); const next=(useLat!=null&&useLon!=null)? nextSunEvent(useLat,useLon,now):null;
+    const pad=n=>String(n).padStart(2,'0'); const toUTCDate=d=>`${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`; const toUTCTime=d=>`${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
+    if(next){ el('eventTitle').textContent=`Next: ${next.name}`; el('utc').textContent=`${toUTCTime(next.t)} UTC`; el('date').textContent=toUTCDate(next.t); }
+    else { el('eventTitle').textContent='Next: —'; el('utc').textContent=`${toUTCTime(now)} UTC`; el('date').textContent=toUTCDate(now); }
 
-    // 6) Numbers
+    // Numbers
     el('speed').textContent = (last.speedKps!=null? fmt3.format(last.speedKps)+' km/s' : '—');
     el('alt').textContent   = (last.altKm!=null? fmt.format(last.altKm)+' km' : '—');
 
-    // 7) Country facts
+    // Country facts
     let capital='—', density='—', population=null, area=null;
     if(place.iso2){
       try{
         const rest = await getJSON(`https://restcountries.com/v3.1/alpha/${place.iso2}`);
-        const r = Array.isArray(rest) ? rest[0] : rest;
+        const r = Array.isArray(rest)?rest[0]:rest;
         capital = (r && r.capital && r.capital[0]) ? r.capital[0] : '—';
         population = r?.population || null; area = r?.area || null;
         if(population && area){ density = `${fmt.format(population/area)} ppl/km²`; }
@@ -223,27 +202,24 @@ async function tick(){
     el('capital').textContent = capital;
     el('density').textContent = density;
 
-    // 8) Poverty (World Bank)
-    let povText = '—';
+    // Poverty
+    let pov='—';
     if(place.iso2){
       try{
         const wb = await getJSON(`https://api.worldbank.org/v2/country/${place.iso2}/indicator/SI.POV.DDAY?format=json&per_page=60`);
-        const series = (wb && wb[1]) ? wb[1] : [];
-        const latest = series.find(x=>x.value!==null);
-        if(latest && typeof latest.value==='number'){ povText = pct(latest.value); }
+        const series = (wb && wb[1]) ? wb[1] : []; const latest = series.find(x=>x.value!==null);
+        if(latest && typeof latest.value === 'number'){ pov = pct(latest.value); }
       }catch(e){}
     }
-    el('poverty').textContent = povText;
+    el('poverty').textContent = pov;
 
-  }catch(err){
-    console.error(err);
-  }
+  }catch(err){ console.error(err); }
 }
 
-/* live UTC clock for labels */
+/* Live UTC labels (independent of API success) */
 function tickClock(){
   const now = new Date();
-  const pad = n => String(n).padStart(2,'0');
+  const pad=n=>String(n).padStart(2,'0');
   el('date').textContent = `${now.getUTCFullYear()}-${pad(now.getUTCMonth()+1)}-${pad(now.getUTCDate())}`;
   el('utc').textContent  = `${pad(now.getUTCHours())}:${pad(now.getUTCMinutes())}:${pad(now.getUTCSeconds())} UTC`;
 }
