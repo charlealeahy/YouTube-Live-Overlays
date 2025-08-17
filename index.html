@@ -4,36 +4,30 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>ISS Info Widget</title>
-<!-- Sunrise/Sunset -->
 <script src="https://unpkg.com/suncalc@1.9.0/suncalc.js"></script>
-<!-- SGP4 local orbit solver -->
+<!-- satellite.js is optional; we’ll still show data without it -->
 <script src="https://cdn.jsdelivr.net/npm/satellite.js@5.0.1/dist/satellite.min.js"></script>
 <style>
   :root{ --w:440px; --h:240px; --bg:#0e0f12; --panel:#171a1f; --muted:#9aa4b2; --text:#e7edf5; --card:#101319; }
   html,body{height:100%;margin:0;background:transparent}
   *{box-sizing:border-box;font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
   .widget{width:var(--w);height:var(--h);display:grid;grid-template-rows:1fr 84px;gap:8px;padding:8px;background:var(--bg);color:var(--text);border:1px solid #262a34;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.45);overflow:hidden}
-
-  /* Two-line heading */
   .location{display:grid;place-items:center;grid-template-rows:auto auto;row-gap:2px;background:linear-gradient(180deg,#12151c,#0e1116);border-radius:10px;border:1px solid #1e2530;padding:10px}
   .locLine{font-weight:700;letter-spacing:.3px;text-align:center;line-height:1.05}
   .locTop{font-size:30px}.locBottom{font-size:26px;opacity:.95}
   .location.small .locTop{font-size:26px}.location.small .locBottom{font-size:22px}
   .location.tiny .locTop{font-size:22px}.location.tiny .locBottom{font-size:19px}
-
   .bottom{display:grid;grid-template-columns:112px 1fr;gap:8px}
   .flagCard{background:var(--card);border:1px solid #1f2430;border-radius:10px;display:grid;grid-template-rows:1fr 24px;overflow:hidden}
   .flagWrap{display:flex;align-items:center;justify-content:center;padding:8px;background:radial-gradient(120% 140% at 50% 0%,#1a2230 0%,#0f141d 60%,#0b0e13 100%)}
   .flag{width:100%;height:100%;max-width:88px;max-height:60px;object-fit:cover;border-radius:6px;border:1px solid #2a3140;background:#0b0d10}
   .live{background:#c61717;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;letter-spacing:.6px;text-transform:uppercase;font-size:12px}
-
   .info{background:var(--panel);border:1px solid #222937;border-radius:10px;padding:8px 10px;display:grid;grid-template-rows:auto 1fr;gap:6px}
   .rowTitle{font-weight:800;color:#cfd7e3;font-size:16px}
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 14px;font-size:13px;line-height:1.3;align-content:start}
   .muted{color:var(--muted)} .mono{font-variant-numeric:tabular-nums;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
   .span2{grid-column:1 / -1;text-align:center}
-
-  #dbg{display:none;margin-top:2px;font-size:10px;color:#9aa4b2;opacity:.85}
+  #dbg{display:block;margin-top:2px;font-size:10px;color:#9aa4b2;opacity:.85} /* set display:none to hide */
 </style>
 </head>
 <body>
@@ -60,247 +54,151 @@
         <div><span class="muted">Poverty:</span> <span class="mono" id="poverty">—</span></div>
         <div class="span2"><span class="muted">Capital:</span> <span class="mono" id="capital">—</span></div>
       </div>
-      <div id="dbg">debug</div>
+      <div id="dbg"></div>
     </div>
   </div>
 </div>
 
 <script>
-/* =================== SETTINGS =================== */
-const DEBUG = false;     // set true to see which source is used
-const REFRESH_MS = 5000;
-const TEXT1 = 26, TEXT2 = 40;
-/* ================================================ */
-
-const el = id => document.getElementById(id);
-const fmt  = new Intl.NumberFormat('en-US',{maximumFractionDigits:2});
-const fmt3 = new Intl.NumberFormat('en-US',{maximumFractionDigits:3});
-const pct  = x => (x==null||isNaN(x)?'—':(Math.round(x*10)/10).toFixed(1)+'%');
-const dbg  = m => { if(DEBUG){ const n=el('dbg'); n.style.display='block'; n.textContent=String(m);} };
-
+/* ------------------ helpers ------------------ */
+const el=id=>document.getElementById(id);
+const fmt=new Intl.NumberFormat('en-US',{maximumFractionDigits:2});
+const fmt3=new Intl.NumberFormat('en-US',{maximumFractionDigits:3});
+const pct=x=>(x==null||isNaN(x)?'—':(Math.round(x*10)/10).toFixed(1)+'%');
 function fitTwoLine(top,bottom){
-  const box = el('loc'); box.classList.remove('small','tiny');
-  el('locTop').textContent = top || '—';
-  el('locBottom').textContent = bottom || '—';
-  const total = (top||'').length + (bottom||'').length;
-  if(total > TEXT1 && total <= TEXT2) box.classList.add('small');
-  if(total > TEXT2) box.classList.add('tiny');
+  const box=el('loc'); box.classList.remove('small','tiny');
+  el('locTop').textContent=top||'—'; el('locBottom').textContent=bottom||'—';
+  const total=(top||'').length+(bottom||'').length;
+  if(total>26 && total<=40) box.classList.add('small');
+  if(total>40) box.classList.add('tiny');
+}
+async function j(url,timeout=7000){ const c=new AbortController(); const t=setTimeout(()=>c.abort(),timeout); const r=await fetch(url,{signal:c.signal,cache:'no-store'}); clearTimeout(t); if(!r.ok) throw new Error(r.status); return r.json(); }
+async function t(url,timeout=7000){ const c=new AbortController(); const tmr=setTimeout(()=>c.abort(),timeout); const r=await fetch(url,{signal:c.signal,cache:'no-store'}); clearTimeout(tmr); if(!r.ok) throw new Error(r.status); return r.text(); }
+
+/* ---------------- local immediate coords (never empty) ---------------- */
+function approxISS(){
+  // Very small, always-on approximation so we show *something* instantly
+  const now=Date.now()/1000;
+  const period=92.68*60; // s
+  const phase=(now%period)/period*2*Math.PI;
+  const inc=51.64*Math.PI/180;
+  const lat=Math.asin(Math.sin(inc)*Math.sin(phase))*180/Math.PI;
+  const lon=(((phase*57.2958)*1.13)%360)-180; // crude drift -> [-180,180)
+  return {lat, lon, altKm:420, speedKps:7.66};
 }
 
-/* ---- tiny fetch helpers ---- */
-async function getText(url,{timeout=7000,retries=1}={}) {
-  for(let a=0;a<=retries;a++){
-    try{
-      const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),timeout);
-      const r=await fetch(url,{signal:ctrl.signal,cache:'no-store'}); clearTimeout(t);
-      if(r.ok) return await r.text();
-    }catch(e){}
-    await new Promise(r=>setTimeout(r,350+a*300));
-  }
-  throw new Error('fetch failed '+url);
-}
-async function getJSON(url,opts){ return JSON.parse(await getText(url,opts)); }
-
-/* ======= POSITION SOURCES ======= */
-/* 1) WhereTheISS (two attempts)  2) Open-Notify  3) Local SGP4 from TLE (3 mirrors + built-in) */
-
-async function getISS(){
-  const ts = Date.now();
-  try{ dbg('WhereTheISS'); return await getJSON(`https://api.wheretheiss.at/v1/satellites/25544?ts=${ts}`, {timeout:6000,retries:1}); }catch(e){}
-  try{ dbg('WhereTheISS (proxy)'); return await getJSON(`https://cors.isomorphic-git.org/https://api.wheretheiss.at/v1/satellites/25544?ts=${ts}`, {timeout:6000}); }catch(e){}
+/* --------------- better local SGP4 (if satellite.js & TLE available) --------------- */
+async function sgp4ISS(){
   try{
-    dbg('Open-Notify');
-    const on = await getJSON(`https://cors.isomorphic-git.org/https://api.open-notify.org/iss-now.json`, {timeout:6000});
-    return {
-      latitude:  parseFloat(on?.iss_position?.latitude),
-      longitude: parseFloat(on?.iss_position?.longitude),
-      altitude:  undefined, velocity: undefined
-    };
-  }catch(e){}
-  dbg('Local SGP4');
-  return await localSGP4Position(); // never throws
+    const srcs=[
+      "https://r.jina.ai/https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=TLE",
+      "https://r.jina.ai/https://celestrak.org/NORAD/elements/stations.txt"
+    ];
+    let l1,l2,txt=null;
+    for(const u of srcs){ try{ txt=await t(u,6000); if(txt) break; }catch{} }
+    if(!txt) throw 0;
+    const lines=txt.trim().split(/\r?\n/);
+    if(lines[0].startsWith('1 25544')){ l1=lines[0].trim(); l2=lines[1].trim(); }
+    else{ const i=lines.findIndex(x=>/^ISS \(ZARYA\)/i.test(x)); l1=lines[i+1]?.trim(); l2=lines[i+2]?.trim(); }
+    if(!(window.satellite&&l1&&l2)) throw 0;
+    const satrec=satellite.twoline2satrec(l1,l2);
+    const now=new Date(); const pv=satellite.propagate(satrec,now);
+    const gmst=satellite.gstime(now); const gd=satellite.eciToGeodetic(pv.position,gmst);
+    const lat=satellite.degreesLat(gd.latitude), lon=satellite.degreesLong(gd.longitude);
+    const v=pv.velocity; const speedKps=Math.sqrt(v.x*v.x+v.y*v.y+v.z*v.z);
+    return {lat, lon, altKm:gd.height, speedKps};
+  }catch{return approxISS();}
 }
 
-/* Get a fresh TLE (3 mirrors). If all fail, use built-in TLE. */
-const EMBED_TLE = {
-  line1: "1 25544U 98067A   24180.50000000  .00016717  00000-0  10270-3 0  9990",
-  line2: "2 25544  51.6428  39.0000 0005400  80.0000 280.0000 15.50000000  1234"
-}; // backup only; will be off by some amount over time
-
-async function getTLE(){
-  const urls = [
-    // direct TLE
-    "https://r.jina.ai/https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=TLE",
-    // stations catalog (parse)
-    "https://r.jina.ai/https://celestrak.org/NORAD/elements/stations.txt",
-    // alt mirror
-    "https://api.allorigins.win/raw?url=https://celestrak.org/NORAD/elements/stations.txt"
-  ];
-  for(const u of urls){
-    try{
-      const txt = await getText(u, {timeout:7000});
-      const lines = txt.trim().split(/\r?\n/);
-      if(lines.length>=2 && lines[0].startsWith('1 25544') && lines[1].startsWith('2 25544')){
-        return {line1:lines[0].trim(), line2:lines[1].trim()};
-      }
-      const idx = lines.findIndex(l=>/^ISS \(ZARYA\)/i.test(l));
-      if(idx>=0 && lines[idx+1] && lines[idx+2]){
-        return {line1:lines[idx+1].trim(), line2:lines[idx+2].trim()};
-      }
-    }catch(e){}
-  }
-  return EMBED_TLE;
+/* ---------------- remote sources (race) ---------------- */
+async function remoteISS(){
+  const ts=Date.now();
+  const p1=j(`https://api.wheretheiss.at/v1/satellites/25544?ts=${ts}`,6000).then(x=>({lat:x.latitude,lon:x.longitude,altKm:x.altitude,speedKps:x.velocity/3600, src:'WhereTheISS'}));
+  const p2=j(`https://cors.isomorphic-git.org/https://api.open-notify.org/iss-now.json`,6000).then(x=>({lat:+x.iss_position.latitude,lon:+x.iss_position.longitude,altKm:undefined,speedKps:undefined, src:'Open-Notify'}));
+  return Promise.race([p1,p2]);
 }
 
-/* Compute lat/lon/alt/speed from TLE (km, km/s) */
-async function localSGP4Position(){
-  try{
-    const {line1,line2} = await getTLE();
-    const satrec = satellite.twoline2satrec(line1, line2);
-    const now = new Date();
-    const pv = satellite.propagate(satrec, now);
-    const gmst = satellite.gstime(now);
-    const gd = satellite.eciToGeodetic(pv.position, gmst);
-    const lat = satellite.degreesLat(gd.latitude);
-    const lon = satellite.degreesLong(gd.longitude);
-    const altKm = gd.height;
-    const v = pv.velocity;
-    const speedKps = Math.sqrt(v.x*v.x + v.y*v.y + v.z*v.z);
-    return { latitude:lat, longitude:lon, altitude:altKm, velocity:speedKps*3600 }; // km/h
-  }catch(e){
-    // extremely unlikely; fall back to approximate orbit constants
-    const now = new Date().getTime()/1000;
-    const period = 92.68*60; // s
-    const meanMotion = 2*Math.PI/period;
-    const phase = (now % period)/period*2*Math.PI;
-    const inc = 51.64*Math.PI/180;
-    const r = 6771; // km approx Earth radius + 400km
-    const lat = Math.asin(Math.sin(inc)*Math.sin(phase)) * 180/Math.PI;
-    const lon = ((phase*180/Math.PI)*1.1) % 360 - 180; // crude drift
-    return { latitude:lat, longitude:lon, altitude:420, velocity:27600 };
-  }
+/* ---------------- reverse geocode chain ---------------- */
+async function rg(lat,lon){
+  try{ const o=await j(`https://geocoding-api.open-meteo.com/v1/reverse?latitude=${lat}&longitude=${lon}&language=en`,7000); const r=o.results?.[0]; if(r) return {country:r.country, iso:(r.country_code||'').toUpperCase(), region:r.admin1||r.admin2||r.name}; }catch{}
+  try{ const o=await j(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`,7000); if(o.countryName) return {country:o.countryName, iso:o.countryCode, region:o.principalSubdivision||o.locality}; }catch{}
+  try{ const o=await j(`https://geocode.maps.co/reverse?lat=${lat}&lon=${lon}`,7000); const a=o.address||{}; return {country:a.country, iso:(a.country_code||'').toUpperCase(), region:a.state||a.county||a.region}; }catch{}
+  try{ const o=await j(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`,7000); const a=o.address||{}; return {country:a.country, iso:(a.country_code||'').toUpperCase(), region:a.state||a.county||a.region}; }catch{}
+  return {country:null,iso:null,region:null};
 }
 
-/* ======= Reverse geocode chain (no keys) ======= */
-async function reverseGeocode(lat, lon){
-  // Open-Meteo
-  try{
-    const j = await getJSON(`https://geocoding-api.open-meteo.com/v1/reverse?latitude=${lat}&longitude=${lon}&language=en`, {timeout:7000});
-    const r = j?.results?.[0];
-    if(r){ return {countryName:r.country||null, iso2:(r.country_code||'').toUpperCase()||null, region:r.admin1||r.admin2||r.name||null, oceanName:null}; }
-  }catch(e){}
-  // BigDataCloud (ocean detection)
-  try{
-    const j = await getJSON(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`, {timeout:7000});
-    let ocean=null; const inf=j?.localityInfo?.informative||[]; const o=inf.find(x=>/ocean/i.test(x.description||x.name||'')); if(o) ocean=o.name||o.description;
-    if(j.countryName || ocean){ return {countryName:j.countryName||null, iso2:j.countryCode||null, region:j.principalSubdivision||j.locality||null, oceanName:ocean}; }
-  }catch(e){}
-  // maps.co
-  try{
-    const j = await getJSON(`https://geocode.maps.co/reverse?lat=${lat}&lon=${lon}`, {timeout:7000});
-    const a = j.address || {};
-    return {countryName:a.country||null, iso2:(a.country_code||'').toUpperCase()||null, region:a.state||a.county||a.region||null, oceanName:a.ocean||a.water||null};
-  }catch(e){}
-  // OSM
-  try{
-    const j = await getJSON(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`, {timeout:7000});
-    const a = j.address || {};
-    return {countryName:a.country||null, iso2:(a.country_code||'').toUpperCase()||null, region:a.state||a.county||a.region||null, oceanName:a.ocean||a.water||null};
-  }catch(e){}
-  return {countryName:null, iso2:null, region:null, oceanName:null};
-}
+/* ---------------- state + UI ---------------- */
+let last={lat:null,lon:null,altKm:null,speedKps:null,iso:null,country:null,region:null};
 
-/* Next sunrise/sunset across today+tomorrow */
-function nextSunEvent(lat, lon, now){
-  const evts=[]; for(let d=0; d<2; d++){ const day=new Date(now.getTime()+d*86400000); const t=SunCalc.getTimes(day,lat,lon); evts.push({name:'Sunrise',t:t.sunrise},{name:'Sunset',t:t.sunset}); }
-  return evts.filter(e=>e.t && e.t>now).sort((a,b)=>a.t-b.t)[0] || null;
+function updateSun(lat,lon){
+  const now=new Date();
+  const evts=[]; for(let d=0;d<2;d++){ const day=new Date(now.getTime()+d*86400000); const t=SunCalc.getTimes(day,lat,lon); evts.push({n:'Sunrise',t:t.sunrise},{n:'Sunset',t:t.sunset}); }
+  const next=evts.filter(e=>e.t>now).sort((a,b)=>a.t-b.t)[0];
+  const pad=n=>String(n).padStart(2,'0'); const d=t=>`${t.getUTCFullYear()}-${pad(t.getUTCMonth()+1)}-${pad(t.getUTCDate())}`; const h=t=>`${pad(t.getUTCHours())}:${pad(t.getUTCMinutes())}:${pad(t.getUTCSeconds())} UTC`;
+  if(next){ el('eventTitle').textContent=`Next: ${next.n}`; el('utc').textContent=h(next.t); el('date').textContent=d(next.t); }
 }
-
-/* keep last good state so UI never blanks */
-let last = {lat:null, lon:null, altKm:null, speedKps:null, iso2:null, country:null, region:null};
 
 async function tick(){
   try{
-    const iss = await getISS();
-    const lat = Number(iss.latitude), lon = Number(iss.longitude);
-    const altKm = iss.altitude!=null ? Number(iss.altitude) : last.altKm;
-    const speedKps = iss.velocity!=null ? Number(iss.velocity)/3600 : last.speedKps;
-
-    if(Number.isFinite(lat) && Number.isFinite(lon)){ last.lat=lat; last.lon=lon; }
-    if(Number.isFinite(altKm)) { last.altKm=altKm; }
-    if(Number.isFinite(speedKps)) { last.speedKps=speedKps; }
-
-    const useLat=last.lat, useLon=last.lon;
-
-    // Geocode
-    let place = {countryName:last.country, iso2:last.iso2, region:last.region, oceanName:null};
-    if(Number.isFinite(useLat) && Number.isFinite(useLon)){
-      place = await reverseGeocode(useLat, useLon);
-      last.country=place.countryName; last.iso2=place.iso2; last.region=place.region;
+    /* Step 1: show immediate local estimate so UI isn’t empty */
+    if(last.lat==null){
+      const est = await sgp4ISS().catch(()=>approxISS());
+      last.lat=est.lat; last.lon=est.lon; last.altKm=est.altKm; last.speedKps=est.speedKps;
+      updateSun(last.lat,last.lon);
+      el('speed').textContent=fmt3.format(last.speedKps)+' km/s';
+      el('alt').textContent=fmt.format(last.altKm)+' km';
     }
 
-    // Heading
-    const overOcean = !place.countryName && !!place.oceanName;
-    if(overOcean){ fitTwoLine(place.oceanName || 'Open Ocean', ''); }
-    else if(place.region && place.countryName){ fitTwoLine(place.region, place.countryName); }
-    else { fitTwoLine(place.countryName || '—', ''); }
+    /* Step 2: race remote call; if it wins, refine numbers */
+    remoteISS().then(async (best)=>{
+      if(best && isFinite(best.lat) && isFinite(best.lon)){
+        last.lat=best.lat; last.lon=best.lon;
+        if(isFinite(best.altKm)) last.altKm=best.altKm;
+        if(isFinite(best.speedKps)) last.speedKps=best.speedKps;
+        updateSun(last.lat,last.lon);
+        el('speed').textContent=fmt3.format(last.speedKps)+' km/s';
+        el('alt').textContent=fmt.format(last.altKm)+' km';
+        el('dbg').textContent=best.src||'local';
+        // reverse geocode (only if we don’t already have it or country changed)
+        const geo=await rg(last.lat,last.lon);
+        last.country=geo.country; last.iso=geo.iso; last.region=geo.region;
+        if(last.country&&last.region) fitTwoLine(last.region,last.country);
+        else if(last.country) fitTwoLine(last.country,'');
+        // flag + facts
+        if(last.iso){ const f=el('flag'); f.src=`https://flagcdn.com/w80/${last.iso.toLowerCase()}.png`; f.style.opacity='1'; }
+        try{
+          if(last.iso){
+            const rest=await j(`https://restcountries.com/v3.1/alpha/${last.iso}`,7000); const r=Array.isArray(rest)?rest[0]:rest;
+            const population=r?.population, area=r?.area, capital=(r?.capital&&r.capital[0])||'—';
+            el('capital').textContent=capital;
+            el('density').textContent=(population&&area)?`${fmt.format(population/area)} ppl/km²`:'—';
+          }
+        }catch{}
+        try{
+          if(last.iso){
+            const wb=await j(`https://api.worldbank.org/v2/country/${last.iso}/indicator/SI.POV.DDAY?format=json&per_page=60`,7000);
+            const s=(wb&&wb[1])?wb[1]:[]; const b=s.find(x=>x.value!==null);
+            el('poverty').textContent = (b && typeof b.value==='number')? pct(b.value) : '—';
+          }
+        }catch{}
+      }
+    });
 
-    // Flag
-    const flagEl = el('flag');
-    if(place.iso2){ flagEl.src=`https://flagcdn.com/w80/${place.iso2.toLowerCase()}.png`; flagEl.style.opacity='1'; }
-    else { flagEl.removeAttribute('src'); flagEl.style.opacity='0.25'; }
-
-    // Next sun event
-    const now=new Date(); const next=(Number.isFinite(useLat)&&Number.isFinite(useLon))? nextSunEvent(useLat,useLon,now):null;
-    const pad=n=>String(n).padStart(2,'0'); const toUTCDate=d=>`${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`; const toUTCTime=d=>`${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCHours()!=null?d.getUTCSeconds():'00')} UTC`;
-    if(next){ el('eventTitle').textContent=`Next: ${next.name}`; el('utc').textContent=`${toUTCTime(next.t)}`; el('date').textContent=toUTCDate(next.t); }
-    else { el('eventTitle').textContent='Next: —'; el('utc').textContent=`${toUTCTime(now)}`; el('date').textContent=toUTCDate(now); }
-
-    // Numbers
-    el('speed').textContent = (last.speedKps!=null? fmt3.format(last.speedKps)+' km/s' : '—');
-    el('alt').textContent   = (last.altKm!=null? fmt.format(last.altKm)+' km' : '—');
-
-    // Country facts
-    let capital='—', density='—', population=null, area=null;
-    if(place.iso2){
-      try{
-        const rest = await getJSON(`https://restcountries.com/v3.1/alpha/${place.iso2}`, {timeout:7000});
-        const r = Array.isArray(rest)?rest[0]:rest;
-        capital = (r && r.capital && r.capital[0]) ? r.capital[0] : '—';
-        population = r?.population || null; area = r?.area || null;
-        if(population && area){ density = `${fmt.format(population/area)} ppl/km²`; }
-      }catch(e){}
+    /* Step 3: if we already have country from a previous tick, keep it on screen */
+    if(last.country){
+      if(last.region) fitTwoLine(last.region,last.country); else fitTwoLine(last.country,'');
+      if(last.iso){ const f=el('flag'); f.src=`https://flagcdn.com/w80/${last.iso.toLowerCase()}.png`; f.style.opacity='1'; }
     }
-    el('capital').textContent = capital;
-    el('density').textContent = density;
 
-    // Poverty
-    let pov='—';
-    if(place.iso2){
-      try{
-        const wb = await getJSON(`https://api.worldbank.org/v2/country/${place.iso2}/indicator/SI.POV.DDAY?format=json&per_page=60`, {timeout:7000});
-        const series = (wb && wb[1]) ? wb[1] : []; const latest = series.find(x=>x.value!==null);
-        if(latest && typeof latest.value === 'number'){ pov = pct(latest.value); }
-      }catch(e){}
-    }
-    el('poverty').textContent = pov;
-
-  }catch(err){
-    dbg(err.message||String(err));
-  }
+  }catch(e){ /* keep last-good data on screen */ }
 }
 
-/* Live UTC labels (independent of API success) */
-function tickClock(){
-  const now = new Date();
-  const pad=n=>String(n).padStart(2,'0');
-  el('date').textContent = `${now.getUTCFullYear()}-${pad(now.getUTCMonth()+1)}-${pad(now.getUTCDate())}`;
-  el('utc').textContent  = `${pad(now.getUTCHours())}:${pad(now.getUTCMinutes())}:${pad(now.getUTCSeconds())} UTC`;
-}
+/* live UTC labels */
+setInterval(()=>{const n=new Date(),p=v=>String(v).padStart(2,'0'); el('date').textContent=`${n.getUTCFullYear()}-${p(n.getUTCMonth()+1)}-${p(n.getUTCDate())}`; el('utc').textContent=`${p(n.getUTCHours())}:${p(n.getUTCMinutes())}:${p(n.getUTCSeconds())} UTC`;},1000);
 
+/* kick off */
 tick();
-setInterval(tick, REFRESH_MS);
-setInterval(tickClock, 1000);
+setInterval(tick, 5000);
 </script>
 </body>
 </html>
