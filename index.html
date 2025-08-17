@@ -4,7 +4,10 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>ISS Info Widget</title>
+<!-- Sunrise/Sunset -->
 <script src="https://unpkg.com/suncalc@1.9.0/suncalc.js"></script>
+<!-- SGP4 local orbit solver -->
+<script src="https://cdn.jsdelivr.net/npm/satellite.js@5.0.1/dist/satellite.min.js"></script>
 <style>
   :root{ --w:440px; --h:240px; --bg:#0e0f12; --panel:#171a1f; --muted:#9aa4b2; --text:#e7edf5; --card:#101319; }
   html,body{height:100%;margin:0;background:transparent}
@@ -30,8 +33,7 @@
   .muted{color:var(--muted)} .mono{font-variant-numeric:tabular-nums;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
   .span2{grid-column:1 / -1;text-align:center}
 
-  /* hidden debug line – set display:block to see provider status */
-  #dbg{display:none;margin-top:2px;font-size:10px;color:#9aa4b2;opacity:.8}
+  #dbg{display:none;margin-top:2px;font-size:10px;color:#9aa4b2;opacity:.85}
 </style>
 </head>
 <body>
@@ -64,21 +66,17 @@
 </div>
 
 <script>
-/* =================== CONFIG =================== */
-/* Optional keys (leave empty to use free, keyless fallbacks) */
-const N2YO_API_KEY   = "";   // https://www.n2yo.com/api/
-const GEOAPIFY_KEY   = "";   // https://www.geoapify.com/
-const DEBUG = false;         // set true to show provider used in bottom-right
-/* ============================================== */
-
+/* =================== SETTINGS =================== */
+const DEBUG = false;     // set true to see which source is used
 const REFRESH_MS = 5000;
 const TEXT1 = 26, TEXT2 = 40;
+/* ================================================ */
 
 const el = id => document.getElementById(id);
 const fmt  = new Intl.NumberFormat('en-US',{maximumFractionDigits:2});
 const fmt3 = new Intl.NumberFormat('en-US',{maximumFractionDigits:3});
 const pct  = x => (x==null||isNaN(x)?'—':(Math.round(x*10)/10).toFixed(1)+'%');
-const dbg  = msg => { if(DEBUG){ const n=el('dbg'); n.style.display='block'; n.textContent=String(msg); } };
+const dbg  = m => { if(DEBUG){ const n=el('dbg'); n.style.display='block'; n.textContent=String(m);} };
 
 function fitTwoLine(top,bottom){
   const box = el('loc'); box.classList.remove('small','tiny');
@@ -89,6 +87,7 @@ function fitTwoLine(top,bottom){
   if(total > TEXT2) box.classList.add('tiny');
 }
 
+/* ---- tiny fetch helpers ---- */
 async function getText(url,{timeout=7000,retries=1}={}) {
   for(let a=0;a<=retries;a++){
     try{
@@ -98,70 +97,111 @@ async function getText(url,{timeout=7000,retries=1}={}) {
     }catch(e){}
     await new Promise(r=>setTimeout(r,350+a*300));
   }
-  throw new Error('text fetch failed '+url);
+  throw new Error('fetch failed '+url);
 }
 async function getJSON(url,opts){ return JSON.parse(await getText(url,opts)); }
 
-/* ---------- ISS position: robust chain (N2YO -> WhereTheISS -> Open-Notify) ---------- */
+/* ======= POSITION SOURCES ======= */
+/* 1) WhereTheISS (two attempts)  2) Open-Notify  3) Local SGP4 from TLE (3 mirrors + built-in) */
+
 async function getISS(){
   const ts = Date.now();
-
-  // 1) N2YO (if key present)
-  if(N2YO_API_KEY){
-    try{
-      // N2YO returns lat/lon/alt/speed in /positions call (we sample 1 point)
-      const j = await getJSON(`https://api.n2yo.com/rest/v1/satellite/positions/25544/0/0/0/1/&apiKey=${encodeURIComponent(N2YO_API_KEY)}&t=${ts}`, {timeout:6000});
-      const p = j?.positions?.[0];
-      if(p){ dbg("N2YO"); return {latitude:p.latitude, longitude:p.longitude, altitude:p.sataltitude, velocity:p.satvelocity}; }
-    }catch(e){}
-  }
-
-  // 2) WhereTheISS (direct)
-  try{ dbg("WhereTheISS"); return await getJSON(`https://api.wheretheiss.at/v1/satellites/25544?ts=${ts}`, {timeout:6000,retries:1}); }catch(e){}
-
-  // 3) WhereTheISS via proxies
-  try{ dbg("WhereTheISS (proxy A)"); return await getJSON(`https://cors.isomorphic-git.org/https://api.wheretheiss.at/v1/satellites/25544?ts=${ts}`, {timeout:6000}); }catch(e){}
-  try{ dbg("WhereTheISS (proxy B)"); return JSON.parse(await getText(`https://r.jina.ai/http://api.wheretheiss.at/v1/satellites/25544`)); }catch(e){}
-
-  // 4) Open-Notify (via proxy) – coords only
+  try{ dbg('WhereTheISS'); return await getJSON(`https://api.wheretheiss.at/v1/satellites/25544?ts=${ts}`, {timeout:6000,retries:1}); }catch(e){}
+  try{ dbg('WhereTheISS (proxy)'); return await getJSON(`https://cors.isomorphic-git.org/https://api.wheretheiss.at/v1/satellites/25544?ts=${ts}`, {timeout:6000}); }catch(e){}
   try{
-    dbg("Open-Notify");
-    const on = await getJSON(`https://thingproxy.freeboard.io/fetch/https://api.open-notify.org/iss-now.json`, {timeout:6000});
+    dbg('Open-Notify');
+    const on = await getJSON(`https://cors.isomorphic-git.org/https://api.open-notify.org/iss-now.json`, {timeout:6000});
     return {
       latitude:  parseFloat(on?.iss_position?.latitude),
       longitude: parseFloat(on?.iss_position?.longitude),
-      altitude:  undefined,
-      velocity:  undefined
+      altitude:  undefined, velocity: undefined
     };
   }catch(e){}
-
-  throw new Error('All ISS providers failed');
+  dbg('Local SGP4');
+  return await localSGP4Position(); // never throws
 }
 
-/* ---------- Reverse geocode: Geoapify (key) -> OpenMeteo -> BDC -> maps.co -> OSM ---------- */
-async function reverseGeocode(lat, lon){
-  if(GEOAPIFY_KEY){
+/* Get a fresh TLE (3 mirrors). If all fail, use built-in TLE. */
+const EMBED_TLE = {
+  line1: "1 25544U 98067A   24180.50000000  .00016717  00000-0  10270-3 0  9990",
+  line2: "2 25544  51.6428  39.0000 0005400  80.0000 280.0000 15.50000000  1234"
+}; // backup only; will be off by some amount over time
+
+async function getTLE(){
+  const urls = [
+    // direct TLE
+    "https://r.jina.ai/https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=TLE",
+    // stations catalog (parse)
+    "https://r.jina.ai/https://celestrak.org/NORAD/elements/stations.txt",
+    // alt mirror
+    "https://api.allorigins.win/raw?url=https://celestrak.org/NORAD/elements/stations.txt"
+  ];
+  for(const u of urls){
     try{
-      const j = await getJSON(`https://api.geoapify.com/v1/geocode/reverse?lat=${lat}&lon=${lon}&format=json&apiKey=${encodeURIComponent(GEOAPIFY_KEY)}`, {timeout:7000});
-      const r = j?.results?.[0];
-      if(r){ return {countryName:r.country||null, iso2:(r.country_code||'').toUpperCase()||null, region:r.state||r.county||r.city||r.name||null, oceanName:null}; }
+      const txt = await getText(u, {timeout:7000});
+      const lines = txt.trim().split(/\r?\n/);
+      if(lines.length>=2 && lines[0].startsWith('1 25544') && lines[1].startsWith('2 25544')){
+        return {line1:lines[0].trim(), line2:lines[1].trim()};
+      }
+      const idx = lines.findIndex(l=>/^ISS \(ZARYA\)/i.test(l));
+      if(idx>=0 && lines[idx+1] && lines[idx+2]){
+        return {line1:lines[idx+1].trim(), line2:lines[idx+2].trim()};
+      }
     }catch(e){}
   }
+  return EMBED_TLE;
+}
+
+/* Compute lat/lon/alt/speed from TLE (km, km/s) */
+async function localSGP4Position(){
+  try{
+    const {line1,line2} = await getTLE();
+    const satrec = satellite.twoline2satrec(line1, line2);
+    const now = new Date();
+    const pv = satellite.propagate(satrec, now);
+    const gmst = satellite.gstime(now);
+    const gd = satellite.eciToGeodetic(pv.position, gmst);
+    const lat = satellite.degreesLat(gd.latitude);
+    const lon = satellite.degreesLong(gd.longitude);
+    const altKm = gd.height;
+    const v = pv.velocity;
+    const speedKps = Math.sqrt(v.x*v.x + v.y*v.y + v.z*v.z);
+    return { latitude:lat, longitude:lon, altitude:altKm, velocity:speedKps*3600 }; // km/h
+  }catch(e){
+    // extremely unlikely; fall back to approximate orbit constants
+    const now = new Date().getTime()/1000;
+    const period = 92.68*60; // s
+    const meanMotion = 2*Math.PI/period;
+    const phase = (now % period)/period*2*Math.PI;
+    const inc = 51.64*Math.PI/180;
+    const r = 6771; // km approx Earth radius + 400km
+    const lat = Math.asin(Math.sin(inc)*Math.sin(phase)) * 180/Math.PI;
+    const lon = ((phase*180/Math.PI)*1.1) % 360 - 180; // crude drift
+    return { latitude:lat, longitude:lon, altitude:420, velocity:27600 };
+  }
+}
+
+/* ======= Reverse geocode chain (no keys) ======= */
+async function reverseGeocode(lat, lon){
+  // Open-Meteo
   try{
     const j = await getJSON(`https://geocoding-api.open-meteo.com/v1/reverse?latitude=${lat}&longitude=${lon}&language=en`, {timeout:7000});
     const r = j?.results?.[0];
     if(r){ return {countryName:r.country||null, iso2:(r.country_code||'').toUpperCase()||null, region:r.admin1||r.admin2||r.name||null, oceanName:null}; }
   }catch(e){}
+  // BigDataCloud (ocean detection)
   try{
     const j = await getJSON(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`, {timeout:7000});
     let ocean=null; const inf=j?.localityInfo?.informative||[]; const o=inf.find(x=>/ocean/i.test(x.description||x.name||'')); if(o) ocean=o.name||o.description;
     if(j.countryName || ocean){ return {countryName:j.countryName||null, iso2:j.countryCode||null, region:j.principalSubdivision||j.locality||null, oceanName:ocean}; }
   }catch(e){}
+  // maps.co
   try{
     const j = await getJSON(`https://geocode.maps.co/reverse?lat=${lat}&lon=${lon}`, {timeout:7000});
     const a = j.address || {};
     return {countryName:a.country||null, iso2:(a.country_code||'').toUpperCase()||null, region:a.state||a.county||a.region||null, oceanName:a.ocean||a.water||null};
   }catch(e){}
+  // OSM
   try{
     const j = await getJSON(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`, {timeout:7000});
     const a = j.address || {};
@@ -170,12 +210,13 @@ async function reverseGeocode(lat, lon){
   return {countryName:null, iso2:null, region:null, oceanName:null};
 }
 
+/* Next sunrise/sunset across today+tomorrow */
 function nextSunEvent(lat, lon, now){
   const evts=[]; for(let d=0; d<2; d++){ const day=new Date(now.getTime()+d*86400000); const t=SunCalc.getTimes(day,lat,lon); evts.push({name:'Sunrise',t:t.sunrise},{name:'Sunset',t:t.sunset}); }
   return evts.filter(e=>e.t && e.t>now).sort((a,b)=>a.t-b.t)[0] || null;
 }
 
-/* Persist last good state */
+/* keep last good state so UI never blanks */
 let last = {lat:null, lon:null, altKm:null, speedKps:null, iso2:null, country:null, region:null};
 
 async function tick(){
@@ -186,32 +227,36 @@ async function tick(){
     const speedKps = iss.velocity!=null ? Number(iss.velocity)/3600 : last.speedKps;
 
     if(Number.isFinite(lat) && Number.isFinite(lon)){ last.lat=lat; last.lon=lon; }
-    if(Number.isFinite(altKm)){ last.altKm=altKm; }
-    if(Number.isFinite(speedKps)){ last.speedKps=speedKps; }
+    if(Number.isFinite(altKm)) { last.altKm=altKm; }
+    if(Number.isFinite(speedKps)) { last.speedKps=speedKps; }
 
     const useLat=last.lat, useLon=last.lon;
 
-    // Geocode (if we have coords)
+    // Geocode
     let place = {countryName:last.country, iso2:last.iso2, region:last.region, oceanName:null};
     if(Number.isFinite(useLat) && Number.isFinite(useLon)){
       place = await reverseGeocode(useLat, useLon);
       last.country=place.countryName; last.iso2=place.iso2; last.region=place.region;
     }
 
+    // Heading
     const overOcean = !place.countryName && !!place.oceanName;
     if(overOcean){ fitTwoLine(place.oceanName || 'Open Ocean', ''); }
     else if(place.region && place.countryName){ fitTwoLine(place.region, place.countryName); }
     else { fitTwoLine(place.countryName || '—', ''); }
 
+    // Flag
     const flagEl = el('flag');
     if(place.iso2){ flagEl.src=`https://flagcdn.com/w80/${place.iso2.toLowerCase()}.png`; flagEl.style.opacity='1'; }
     else { flagEl.removeAttribute('src'); flagEl.style.opacity='0.25'; }
 
+    // Next sun event
     const now=new Date(); const next=(Number.isFinite(useLat)&&Number.isFinite(useLon))? nextSunEvent(useLat,useLon,now):null;
-    const pad=n=>String(n).padStart(2,'0'); const toUTCDate=d=>`${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`; const toUTCTime=d=>`${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
-    if(next){ el('eventTitle').textContent=`Next: ${next.name}`; el('utc').textContent=`${toUTCTime(next.t)} UTC`; el('date').textContent=toUTCDate(next.t); }
-    else { el('eventTitle').textContent='Next: —'; el('utc').textContent=`${toUTCTime(now)} UTC`; el('date').textContent=toUTCDate(now); }
+    const pad=n=>String(n).padStart(2,'0'); const toUTCDate=d=>`${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`; const toUTCTime=d=>`${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCHours()!=null?d.getUTCSeconds():'00')} UTC`;
+    if(next){ el('eventTitle').textContent=`Next: ${next.name}`; el('utc').textContent=`${toUTCTime(next.t)}`; el('date').textContent=toUTCDate(next.t); }
+    else { el('eventTitle').textContent='Next: —'; el('utc').textContent=`${toUTCTime(now)}`; el('date').textContent=toUTCDate(now); }
 
+    // Numbers
     el('speed').textContent = (last.speedKps!=null? fmt3.format(last.speedKps)+' km/s' : '—');
     el('alt').textContent   = (last.altKm!=null? fmt.format(last.altKm)+' km' : '—');
 
@@ -242,11 +287,10 @@ async function tick(){
 
   }catch(err){
     dbg(err.message||String(err));
-    // leave last-good info on screen
   }
 }
 
-/* Live UTC labels */
+/* Live UTC labels (independent of API success) */
 function tickClock(){
   const now = new Date();
   const pad=n=>String(n).padStart(2,'0');
