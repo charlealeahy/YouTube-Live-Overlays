@@ -26,7 +26,7 @@
     font-weight:700; font-size:26px; letter-spacing:.3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
   .row{margin-top:12px; display:grid; grid-template-columns:120px 1fr; gap:var(--gap); align-items:stretch;}
   .side{background:var(--panel); border-radius:var(--r); padding:14px;
-        display:flex; flex-direction:column; justify-content:space-between; align-items:center}
+        display:flex; flex-direction:column; justify-content:center; align-items:center}
   .flag{width:92px;height:64px; border-radius:10px; object-fit:cover; display:block}
   .live{margin-top:16px; background:var(--pill); color:#fff; font-weight:800; font-size:16px;
         padding:9px 16px; border-radius:999px; text-align:center; min-width:72px; box-shadow:0 2px 6px rgba(0,0,0,.35)}
@@ -62,97 +62,56 @@
 <script>
 const API = "https://iss-live.charlesleahy.workers.dev";
 
-/* ----- Ocean photos (royalty-free Unsplash thumbnails) ----- */
+/* Fixed, ocean-only photos (no city shots) */
 const OCEAN_PHOTOS = {
   "Pacific Ocean" : "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=640&q=60",
-  "Atlantic Ocean": "https://images.unsplash.com/photo-1505761671935-60b3a7427bad?auto=format&fit=crop&w=640&q=60",
+  "Atlantic Ocean": "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=640&q=60",
   "Indian Ocean"  : "https://images.unsplash.com/photo-1493558103817-58b2924bce98?auto=format&fit=crop&w=640&q=60",
   "Southern Ocean": "https://images.unsplash.com/photo-1518837695005-2083093ee35b?auto=format&fit=crop&w=640&q=60",
-  "Arctic Ocean"  : "https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=640&q=60"
+  "Arctic Ocean"  : "https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=640&q=60"
 };
 
-/* ----- Quick “interesting facts” per ocean (rotated on the Now slide) ----- */
-const OCEAN_FACTS = {
-  "Pacific Ocean":[
-    "Largest ocean (~165 million km²), holds more water than all other oceans combined.",
-    "Home to the Mariana Trench, deepest point on Earth (~11,000 m).",
-    "Ringed by the volcanically active ‘Ring of Fire’.",
-    "Covers ~30% of Earth’s surface—bigger than all land combined."
-  ],
-  "Atlantic Ocean":[
-    "Second-largest ocean (~106 million km²) with the powerful Gulf Stream current.",
-    "The Mid-Atlantic Ridge splits it north-south and creates new seafloor.",
-    "Average depth ~3,646 m; once the main route of transoceanic travel."
-  ],
-  "Indian Ocean":[
-    "Warmest ocean on average; drives Asian monsoon systems.",
-    "Hosts the fast-flowing Agulhas Current off Africa’s southeast coast.",
-    "Average depth ~3,741 m; ~20% of Earth’s surface water."
-  ],
-  "Southern Ocean":[
-    "Encircles Antarctica; the Antarctic Circumpolar Current is the world’s strongest.",
-    "Key region for absorbing heat and carbon from the atmosphere.",
-    "Designated as Earth’s fifth ocean by National Geographic in 2021."
-  ],
-  "Arctic Ocean":[
-    "Smallest and shallowest ocean; much is seasonally covered by sea ice.",
-    "Average depth ~1,205 m; surrounded by North America, Europe, and Asia.",
-    "A hub for unique ecosystems like polar bears and narwhals."
-  ]
-};
-
-/* -------- helpers -------- */
 const $ = s => document.querySelector(s);
 const titleEl = $('#title'), flagEl = $('#flag'), gridEl = $('#grid'),
       cardTitle = $('#cardTitle'), barEl = $('#bar'), progEl = $('#prog');
 
-const fmtInt  = n => (n??"—").toLocaleString('en-US');
 const fmt2    = n => (n==null? "—" : (Math.round(n*100)/100).toLocaleString('en-US'));
 const pad2    = n => String(n).padStart(2,'0');
 const utcNow  = () => { const d=new Date();
   return `${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}:${pad2(d.getUTCSeconds())}`; };
-const hemi    = (lat,lon)=>`${lat>=0?'N':'S'} • ${lon>=0?'E':'W'}`;
 
 function flagURL(iso2){ return `https://flagcdn.com/w80/${(iso2||'').toLowerCase()}.png`; }
 
-/* -------- rendering -------- */
+/* header + image */
 function setHeader(place){
   const name = place.ocean
     ? place.ocean
     : `${place.region ? place.region + ', ' : ''}${place.country || ''}`.trim().replace(/^,\s*/,'');
   titleEl.textContent = name || '—';
 }
-
 function setFlag(place){
   if (place.ocean){
-    const u = OCEAN_PHOTOS[place.ocean] || OCEAN_PHOTOS["Pacific Ocean"];
-    flagEl.src = u; flagEl.alt = place.ocean + " photo";
+    flagEl.src = OCEAN_PHOTOS[place.ocean] || OCEAN_PHOTOS["Pacific Ocean"];
+    flagEl.alt = place.ocean + " photo";
   }else{
     flagEl.src = place.iso2 ? flagURL(place.iso2) : OCEAN_PHOTOS["Pacific Ocean"];
     flagEl.alt = place.iso2 || "—";
   }
 }
 
-/* slides: stats, country, life */
-function renderStats(state, place, facts, life){
-  cardTitle.textContent = place.ocean ? "Now" : "Now";
+/* slides */
+function addRow(label, value){
+  const l = document.createElement('div'); l.className="label"; l.textContent = label;
+  const v = document.createElement('div'); v.className="val";   v.textContent = value ?? "—";
+  gridEl.appendChild(l); gridEl.appendChild(v);
+}
+function renderStats(state, place){
+  cardTitle.textContent = "Now";
   gridEl.innerHTML = "";
   addRow("UTC :", utcNow() + " UTC");
   addRow("Date :", new Date().toISOString().slice(0,10));
   addRow("Speed :", fmt2(state.speed_kps) + " km/s");
   addRow("Elev :", fmt2(state.alt_km) + " km");
-
-  // Extra context/fact when over ocean
-  if (place.ocean){
-    // Hemisphere hint
-    addRow("Region :", hemi(state.lat, state.lon));
-    // Rotate an ocean fact
-    const list = OCEAN_FACTS[place.ocean] || [];
-    if (list.length){
-      oceanFactIdx = (oceanFactIdx+1) % list.length;
-      addRow("Fact :", list[oceanFactIdx]);
-    }
-  }
 }
 function renderCountry(state, place, facts){
   cardTitle.textContent = "Country Information";
@@ -161,26 +120,19 @@ function renderCountry(state, place, facts){
   addRow("Density :", facts.density ?? "—");
   addRow("Poverty :", facts.poverty ?? "—");
 }
-function renderLife(state, place, factsLife){
+function renderLife(state, place, life){
   cardTitle.textContent = "Life & Age";
   gridEl.innerHTML = "";
-  addRow("Life Expectancy :", factsLife.life ?? "—");
-  addRow("Median Age :", factsLife.median ?? "—");
-  addRow("Male :", factsLife.male ?? "—");
-  addRow("Female :", factsLife.female ?? "—");
-}
-function addRow(label, value){
-  const l = document.createElement('div'); l.className="label"; l.textContent = label;
-  const v = document.createElement('div'); v.className="val";   v.textContent = value ?? "—";
-  gridEl.appendChild(l); gridEl.appendChild(v);
+  addRow("Life Expectancy :", life.life ?? "—");
+  addRow("Median Age :", life.median ?? "—");
+  addRow("Male :", life.male ?? "—");
+  addRow("Female :", life.female ?? "—");
 }
 
-/* -------- slider control -------- */
+/* slider */
 let slides=[], slideIdx=0, tick=null, progTimer=null, secondsPer=7;
-let oceanFactIdx = -1;
-
 function buildSlides(place, facts, life){
-  const arr = [{name:"stats", fn:()=>renderStats(lastState, place, facts, life)}];
+  const arr = [{name:"stats", fn:()=>renderStats(lastState, place)}];
   if (!place.ocean){
     arr.push({name:"country", fn:()=>renderCountry(lastState, place, facts)});
     arr.push({name:"life",    fn:()=>renderLife(lastState, place, life)});
@@ -198,7 +150,6 @@ function startSlider(){
   slideIdx = 0;
   nextSlide();
   tick = setInterval(nextSlide, secondsPer*1000);
-  // progress bar
   let t=0;
   progTimer = setInterval(()=>{
     t += 0.2;
@@ -209,7 +160,7 @@ function startSlider(){
 function nextSlide(){ slides[slideIdx].fn(); slideIdx = (slideIdx+1) % slides.length; }
 function stopSlider(){ clearInterval(tick); clearInterval(progTimer); barEl.style.width='0%'; }
 
-/* -------- data polling -------- */
+/* data */
 let lastState=null, lastPlace=null, lastKey=null;
 
 async function getJSON(u, timeout=8000){
@@ -238,12 +189,10 @@ async function refresh(){
     const key = rg.ocean ? ("ocean:"+rg.ocean) : ("land:"+ (rg.iso2||""));
     if (key !== lastKey){
       lastKey = key;
-      oceanFactIdx = -1; // restart facts per new ocean
       slides = buildSlides(rg, facts, life);
       startSlider();
     } else {
-      // update current slide (clock/speed drift)
-      slides[ (slideIdx+slides.length-1)%slides.length ].fn();
+      slides[ (slideIdx+slides.length-1)%slides.length ].fn(); // keep clock/speed fresh
     }
   }catch(e){
     titleEl.textContent = "Network error – retrying…";
@@ -261,9 +210,9 @@ setInterval(()=>{
   }
 },1000);
 
-/* poll so the location updates without reloading */
+/* poll so location updates without reload */
 refresh();
-setInterval(refresh, 10000); // 10s
+setInterval(refresh, 10000);
 </script>
 </body>
 </html>
