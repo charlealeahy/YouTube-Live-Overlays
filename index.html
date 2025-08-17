@@ -4,44 +4,54 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>ISS Info Widget</title>
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;700;800&display=swap" rel="stylesheet">
-<script src="https://unpkg.com/suncalc@1.9.0/suncalc.js"></script>
+
 <style>
 :root{
-  --w: 620px;         /* width of the widget */
-  --h: 240px;         /* height when country panel is visible */
-  --bg:#0b0f15; --panel:#121823; --muted:#96a0b4; --text:#eaf2ff; --card:#0f141e;
+  --w: 640px;
+  --bg:#0b0f15; --panel:#121823; --card:#0f141e;
+  --text:#eaf2ff; --muted:#99a7bd; --border:#1f2632;
 }
 *{box-sizing:border-box}
-html,body{height:100%;margin:0;background:transparent;font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
-.widget{width:var(--w); min-height:180px; display:grid; grid-template-rows:auto 1fr; gap:10px;
-  padding:10px; border:1px solid #263246; border-radius:16px;
-  background:radial-gradient(100% 140% at 50% 0%, #14233b 0%, #0e1116 100%);
-  color:var(--text); box-shadow:0 12px 30px rgba(0,0,0,.35);
-}
-.title{display:flex; align-items:center; padding:12px 14px; border-radius:12px;
-  background:linear-gradient(180deg,#10151f,#0b0f14 55%,#0b0f14); border:1px solid #1f2632; }
-.title span{font-weight:800; font-size:32px; line-height:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-.bottom{display:grid; grid-template-columns:110px 1fr; gap:10px}
-.flagCard{position:relative; background:linear-gradient(180deg,#0f141d,#0b0f14); border:1px solid #1e2634; border-radius:12px; display:grid; place-items:center; min-height:110px}
-.flagWrap{width:88px; height:56px; display:grid; place-items:center; overflow:hidden; border-radius:8px; background:#0d1320; border:1px solid #0d2133}
+html,body{height:100%;margin:0;background:transparent;color:var(--text);font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+
+.widget{width:var(--w); padding:12px; border:1px solid #263246; border-radius:18px;
+  background:radial-gradient(110% 160% at 50% 0%, #14233b 0%, #0e1116 100%); box-shadow:0 14px 36px rgba(0,0,0,.35);
+  display:grid; grid-template-rows:auto 1fr; gap:10px}
+
+.title{display:flex; justify-content:center; align-items:center; padding:14px; border-radius:14px;
+  background:linear-gradient(180deg,#10151f,#0b0f14 55%,#0b0f14); border:1px solid var(--border)}
+.title span{font-weight:800; font-size:32px; line-height:1; text-align:center}
+
+.bottom{display:grid; grid-template-columns:120px 1fr; gap:12px}
+
+.flagCard{position:relative; border:1px solid var(--border); border-radius:14px;
+  background:linear-gradient(180deg,#0f141d,#0b0f14); display:grid; place-items:center; min-height:120px}
+.flagWrap{width:92px;height:60px; display:grid; place-items:center; overflow:hidden; border-radius:10px; background:#0d1320; border:1px solid #0d2133}
 .flag{width:100%; height:100%; object-fit:cover}
-.live{position:absolute; left:10px; bottom:10px; font-weight:800; letter-spacing:.4px; font-size:12px;
+.live{position:absolute; left:12px; bottom:12px; font-weight:800; letter-spacing:.4px; font-size:12px;
   padding:6px 10px; border-radius:8px; background:#bf1d1d; border:1px solid #9f1717; color:#fff}
-.info{background:linear-gradient(180deg,#0f141d,#0b0f14); border:1px solid #1e2634; border-radius:12px; padding:12px 14px; display:grid; gap:8px}
-.rowTitle{font-weight:800; font-size:18px}
-.grid{display:grid; grid-template-columns:140px 1fr; gap:6px 16px; align-items:baseline; font-size:14px}
-.k{color:#9bb0c9}
+
+.info{border:1px solid var(--border); border-radius:14px; background:linear-gradient(180deg,#0f141d,#0b0f14);
+  padding:14px; display:grid; gap:10px}
+
+.stats{display:grid; grid-template-columns:repeat(2,1fr); gap:10px 18px; place-items:center; text-align:center}
+.k{color:var(--muted)}
 .v strong{font-variant-numeric:tabular-nums}
-.muted{color:#96a0b4}
+
+.slide{display:grid; gap:8px; place-items:center; text-align:center}
+.slideTitle{font-weight:800; font-size:18px}
+.slideGrid{display:grid; grid-template-columns:repeat(2,1fr); gap:8px 18px; place-items:center}
 .hidden{display:none}
+
 @media (max-width:520px){ .title span{font-size:26px} .live{display:none} }
 </style>
 </head>
 <body>
-  <div class="widget" id="root">
+  <div class="widget">
     <div class="title"><span id="locText">—</span></div>
 
     <div class="bottom">
@@ -51,21 +61,34 @@ html,body{height:100%;margin:0;background:transparent;font-family:Inter,system-u
       </div>
 
       <div class="info">
-        <div class="rowTitle" id="nextLbl">Next: —</div>
-
-        <div class="grid">
-          <div class="k">UTC:</div>   <div class="v"><strong id="utc">—</strong> <span class="muted">UTC</span></div>
-          <div class="k">Date:</div>  <div class="v"><strong id="date">—</strong></div>
-          <div class="k">Speed:</div> <div class="v"><strong id="spd">—</strong>  <span class="muted">km/s</span></div>
-          <div class="k">Elev:</div>  <div class="v"><strong id="alt">—</strong>  <span class="muted">km</span></div>
+        <!-- centered stats -->
+        <div class="stats">
+          <div class="k">UTC</div>      <div class="v"><strong id="utc">—</strong> <span class="k">UTC</span></div>
+          <div class="k">Date</div>     <div class="v"><strong id="date">—</strong></div>
+          <div class="k">Speed</div>    <div class="v"><strong id="spd">—</strong>  <span class="k">km/s</span></div>
+          <div class="k">Elev</div>     <div class="v"><strong id="alt">—</strong>  <span class="k">km</span></div>
         </div>
 
-        <div id="factsBlock">
-          <div class="rowTitle" style="margin-top:4px">Country Information</div>
-          <div class="grid">
-            <div class="k">Capital:</div> <div class="v" id="cap">—</div>
-            <div class="k">Density:</div> <div class="v" id="dens">—</div>
-            <div class="k">Poverty:</div> <div class="v" id="pov">—</div>
+        <!-- slides container -->
+        <div id="slides">
+          <!-- Slide 1: Country Information -->
+          <div id="slideFacts" class="slide">
+            <div class="slideTitle">Country Information</div>
+            <div class="slideGrid">
+              <div class="k">Capital</div> <div class="v" id="cap">—</div>
+              <div class="k">Density</div> <div class="v" id="dens">—</div>
+              <div class="k">Poverty</div> <div class="v" id="pov">—</div>
+            </div>
+          </div>
+
+          <!-- Slide 2: Life Expectancy -->
+          <div id="slideLife" class="slide hidden">
+            <div class="slideTitle">Life Expectancy</div>
+            <div class="slideGrid">
+              <div class="k">Total</div>  <div class="v" id="le_total">—</div>
+              <div class="k">Male</div>   <div class="v" id="le_male">—</div>
+              <div class="k">Female</div> <div class="v" id="le_fem">—</div>
+            </div>
           </div>
         </div>
       </div>
@@ -76,95 +99,121 @@ html,body{height:100%;margin:0;background:transparent;font-family:Inter,system-u
 const API = "https://iss-live.charlesleahy.workers.dev";
 
 const $ = id => document.getElementById(id);
-const locText = $('locText'), flag = $('flag'), factsBlock = $('factsBlock'),
-      utc = $('utc'), date = $('date'), spd = $('spd'), alt = $('alt'),
-      cap = $('cap'), dens = $('dens'), pov = $('pov'), nextLbl = $('nextLbl');
+const locText=$('locText'), flag=$('flag'),
+      utc=$('utc'), dateEl=$('date'), spd=$('spd'), alt=$('alt'),
+      cap=$('cap'), dens=$('dens'), pov=$('pov'),
+      leT=$('le_total'), leM=$('le_male'), leF=$('le_fem'),
+      slideFacts=$('slideFacts'), slideLife=$('slideLife'), slidesWrap=$('slides');
 
-function z2(n){ return String(Math.floor(n)).padStart(2,'0'); }
-function setText(node, v){ node.textContent = (v ?? '—'); }
+function z2(n){return String(Math.floor(n)).padStart(2,'0');}
+function setText(el, v){el.textContent = v ?? '—';}
 
 async function getJSON(url, timeout=9000){
-  const ac = new AbortController(); const t = setTimeout(()=>ac.abort(), timeout);
-  try{
-    const r = await fetch(url, {signal: ac.signal, headers:{'cache-control':'no-cache'}});
-    if(!r.ok) throw new Error(r.status);
-    return await r.json();
-  } finally { clearTimeout(t); }
+  const ac=new AbortController(); const t=setTimeout(()=>ac.abort(), timeout);
+  try{ const r=await fetch(url,{signal:ac.signal,headers:{'cache-control':'no-cache'}});
+       if(!r.ok) throw new Error(r.status);
+       return await r.json();
+  } finally{ clearTimeout(t); }
 }
 
-function formatNext(lat, lon){
-  const now = new Date();
-  const today  = SunCalc.getTimes(now, lat, lon);
-  const tomorrow = SunCalc.getTimes(new Date(now.getTime()+86400000), lat, lon);
-  const cand = [
-    {kind:"Sunrise", t: today.sunrise}, {kind:"Sunset", t: today.sunset},
-    {kind:"Sunrise", t: tomorrow.sunrise}, {kind:"Sunset", t: tomorrow.sunset}
-  ].filter(x=>x.t && x.t>now).sort((a,b)=>a.t-b.t)[0];
-  if(!cand) return "Next: —";
-  const ms = cand.t - now, h = Math.floor(ms/3600000), m = Math.floor((ms%3600000)/60000);
-  return `Next: ${cand.kind} at ${z2(cand.t.getUTCHours())}:${z2(cand.t.getUTCMinutes())} UTC (in ${h} h ${m} m)`;
-}
-
-function setFlag(iso2, oceanName){
-  if (oceanName){
-    flag.src = "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f30a.svg";
-    flag.alt = "Ocean";
-    return;
-  }
-  if (!iso2){ flag.removeAttribute('src'); flag.alt=''; return; }
-  flag.src = `https://flagcdn.com/w80/${iso2.toLowerCase()}.png`;
-  flag.alt = iso2;
-}
+// header + flag
 function setTitle(region, country, ocean){
   if (ocean) setText(locText, ocean);
   else if (region && country) setText(locText, `${region}, ${country}`);
   else setText(locText, country || '—');
 }
-
-function tickClock(){
-  const d = new Date();
-  setText(utc, `${z2(d.getUTCHours())}:${z2(d.getUTCMinutes())}:${z2(d.getUTCSeconds())}`);
-  setText(date, d.toISOString().slice(0,10));
+function setFlag(iso2, ocean){
+  if (ocean){
+    flag.src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f30a.svg";
+    flag.alt="Ocean";
+  } else if (iso2){
+    flag.src=`https://flagcdn.com/w80/${iso2.toLowerCase()}.png`;
+    flag.alt=iso2;
+  } else {
+    flag.removeAttribute('src'); flag.alt="";
+  }
 }
-setInterval(tickClock, 1000); tickClock();
+
+// clock
+function tick(){
+  const d=new Date();
+  setText(utc, `${z2(d.getUTCHours())}:${z2(d.getUTCMinutes())}:${z2(d.getUTCSeconds())}`);
+  setText(dateEl, d.toISOString().slice(0,10));
+}
+setInterval(tick, 1000); tick();
+
+// slides
+let slideIdx=0, rotTimer=null;
+function showSlide(i){
+  [slideFacts,slideLife].forEach((el,idx)=> el.classList.toggle('hidden', idx!==i));
+  slideIdx=i;
+}
+function startRotate(){
+  stopRotate();
+  rotTimer=setInterval(()=>showSlide((slideIdx+1)%2), 7000);
+}
+function stopRotate(){ if(rotTimer){ clearInterval(rotTimer); rotTimer=null; }}
+
+// life expectancy from WorldBank (CORS-friendly)
+async function fetchLifeExpectancy(iso2){
+  const base = `https://api.worldbank.org/v2/country/${iso2}/indicator`;
+  const pick = arr => {
+    if (!Array.isArray(arr) || !Array.isArray(arr[1])) return null;
+    const r = arr[1].find(x => x && x.value!=null);
+    return r ? Number(r.value) : null;
+  };
+  try{
+    const [t,m,f] = await Promise.all([
+      getJSON(`${base}/SP.DYN.LE00.IN?format=json&per_page=60`),
+      getJSON(`${base}/SP.DYN.LE00.MA.IN?format=json&per_page=60`),
+      getJSON(`${base}/SP.DYN.LE00.FE.IN?format=json&per_page=60`)
+    ]);
+    return { total: pick(t), male: pick(m), female: pick(f) };
+  }catch{ return { total:null, male:null, female:null }; }
+}
 
 async function refresh(){
   try{
     const iss = await getJSON(`${API}/iss?ts=${Date.now()}`);
-    const { lat, lon, alt_km, speed_kps } = iss || {};
-    setText(spd, Number.isFinite(speed_kps) ? speed_kps.toFixed(2) : '—');
-    setText(alt, Number.isFinite(alt_km) ? Math.round(alt_km) : '—');
+    setText(spd,  Number.isFinite(iss?.speed_kps) ? iss.speed_kps.toFixed(2) : '—');
+    setText(alt,  Number.isFinite(iss?.alt_km) ? Math.round(iss.alt_km) : '—');
 
-    // Next event
-    try{ setText(nextLbl, formatNext(lat, lon)); }catch{ setText(nextLbl, "Next: —"); }
-
-    // Reverse geocode
+    // reverse geocode
     let iso2=null, country=null, region=null, ocean=null;
     try{
-      const rg = await getJSON(`${API}/rg?lat=${lat}&lon=${lon}`);
-      iso2 = (rg && rg.iso2) || null; country = rg?.country||null; region = rg?.region||null; ocean = rg?.ocean||null;
-      setTitle(region, country, ocean);
-      setFlag(iso2, ocean);
-    }catch{
-      setTitle(null,null,null); setFlag(null,null);
-    }
+      const rg = await getJSON(`${API}/rg?lat=${iss.lat}&lon=${iss.lon}`);
+      iso2 = rg?.iso2 || null; country = rg?.country || null; region = rg?.region || null; ocean = rg?.ocean || null;
+    }catch{}
+    setTitle(region, country, ocean);
+    setFlag(iso2, ocean);
 
-    // Country facts: show only over land
-    if (iso2){
-      factsBlock.classList.remove('hidden');
-      try{
-        const f = await getJSON(`${API}/facts?iso2=${iso2}`);
-        setText(cap,  f?.capital || '—');
-        setText(dens, f?.density || '—');
-        setText(pov,  f?.poverty || '—');
-      }catch{ setText(cap,'—'); setText(dens,'—'); setText(pov,'—'); }
-    } else {
-      factsBlock.classList.add('hidden'); // hide panel over oceans
+    // over ocean -> hide slides
+    if (!iso2){
+      slidesWrap.classList.add('hidden');
+      stopRotate();
+      return;
     }
+    slidesWrap.classList.remove('hidden');
 
-  }catch(e){
-    console.error(e);
-  }
+    // Country facts
+    try{
+      const f = await getJSON(`${API}/facts?iso2=${iso2}`);
+      setText(cap,  f?.capital || '—');
+      setText(dens, f?.density || '—');
+      setText(pov,  f?.poverty || '—');
+    }catch{ setText(cap,'—'); setText(dens,'—'); setText(pov,'—'); }
+
+    // Life expectancy
+    const le = await fetchLifeExpectancy(iso2);
+    setText(leT, le.total? `${(Math.round(le.total*10)/10).toFixed(1)} yrs` : '—');
+    setText(leM, le.male?  `${(Math.round(le.male*10)/10).toFixed(1)} yrs`  : '—');
+    setText(leF, le.female?`${(Math.round(le.female*10)/10).toFixed(1)} yrs` : '—');
+
+    // rotate slides
+    showSlide(0);
+    startRotate();
+
+  }catch(e){ console.error(e); }
 }
 refresh();
 setInterval(refresh, 15000);
