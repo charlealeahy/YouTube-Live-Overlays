@@ -6,17 +6,11 @@
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>ISS Overlay (vMix safe)</title>
+<title>ISS Overlay (vMix ocean fix)</title>
 <style>
   :root{
-    --bg:#0b161f;
-    --panel:#101b26;
-    --panel2:#0e1923;
-    --text:#e9f2f9;
-    --muted:#9db3c5;
-    --card-w:720px;
-    --r:16px;
-    --shadow:0 24px 36px rgba(0,0,0,.35);
+    --bg:#0b161f; --panel:#101b26; --panel2:#0e1923; --text:#e9f2f9; --muted:#9db3c5;
+    --card-w:720px; --r:16px; --shadow:0 24px 36px rgba(0,0,0,.35);
   }
   *{box-sizing:border-box}
   html,body{height:100%}
@@ -24,28 +18,21 @@
     margin:0;background:var(--bg);color:var(--text);
     font:600 16px/1.35 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
     -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
-    overflow:hidden; /* overlay-friendly */
+    overflow:hidden;
   }
-  .card{
-    width:var(--card-w);margin:24px;padding:22px 22px 26px;
+  .card{width:var(--card-w);margin:24px;padding:22px 22px 26px;
     background:linear-gradient(180deg,var(--panel) 0%,var(--panel2) 100%);
-    border-radius:calc(var(--r) + 4px);box-shadow:var(--shadow);pointer-events:none;
-  }
+    border-radius:calc(var(--r) + 4px);box-shadow:var(--shadow);pointer-events:none;}
   .title{
-    position:relative;z-index:5;display:block;text-align:center;
-    font-size:34px;font-weight:800;letter-spacing:.2px;margin:2px 0 16px;
-    color:#fff; text-rendering:optimizeLegibility; transform:translateZ(0);
-    /* tiny shadow nudges CEF to paint the first line */
-    text-shadow:rgba(0,0,0,.01) 0 0 1px;
+    display:block;text-align:center;font-size:34px;font-weight:800;letter-spacing:.2px;margin:2px 0 16px;color:#fff;
+    text-rendering:optimizeLegibility;transform:translateZ(0);text-shadow:rgba(0,0,0,.01) 0 0 1px;
   }
   .row{display:flex;align-items:center;gap:18px}
   .media{width:120px;display:flex;flex-direction:column;align-items:center}
   .flag{width:96px;height:72px;object-fit:cover;border-radius:12px;background:#0a141c}
   .live{margin-top:12px;padding:8px 18px;border-radius:12px;background:#e53935;color:#fff;font-weight:800;letter-spacing:.6px}
-  .panel{
-    flex:1;min-height:120px;background:rgba(255,255,255,.02);
-    border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:18px 20px;
-  }
+  .panel{flex:1;min-height:120px;background:rgba(255,255,255,.02);
+    border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:18px 20px;}
   .stat{display:flex;align-items:baseline;gap:10px;padding:6px 0}
   .label{min-width:86px;color:var(--muted);font-weight:700}
   .value{font-weight:800}
@@ -56,7 +43,6 @@
 <body>
   <div class="card">
     <div id="title" class="title">Loading…</div>
-
     <div class="row">
       <div class="media">
         <img id="flag" class="flag" alt="" src="">
@@ -74,7 +60,7 @@
 
 <script>
 /* ================= SETTINGS ================= */
-const API_BASE   = 'https://iss-live.charlesleahy.workers.dev';
+const API_BASE   = 'https://iss-live.charlesleahy.workers.dev'; // ← change if yours differs
 const REFRESH_MS = 6000;
 
 /* ================= Elements ================= */
@@ -93,7 +79,7 @@ function fmt(n, d=2){ return (n==null||!isFinite(n)) ? '—' : Number(n).toFixed
 function nowUTC(){ const d=new Date(); return d.toISOString().slice(11,19)+' UTC'; }
 function todayUTC(){ return new Date().toISOString().slice(0,10); }
 
-/* vMix-safe JSON fetch (XHR fallback, no AbortController needed) */
+/* vMix-safe JSON (XHR) */
 function getJSON(url, timeout=8000){
   return new Promise((resolve, reject)=>{
     try{
@@ -113,19 +99,61 @@ function getJSON(url, timeout=8000){
     }catch(e){ reject(e); }
   });
 }
-
 async function fetchISS(){ return await getJSON(`${API_BASE}/iss`); }
 async function reverseGeocode(lat,lon){ return await getJSON(`${API_BASE}/rg?lat=${lat}&lon=${lon}`); }
 
-function buildTitle(meta){
-  if(!meta) return '—';
-  if(meta.ocean) return meta.ocean;
-  if(meta.region && meta.country) return `${meta.region}, ${meta.country}`;
-  if(meta.country) return meta.country;
-  return '—';
+/* ================= Ocean detection (local heuristic) =================
+   Simple but effective regions to cover the five main basins.
+   This guarantees we always name an ocean even if reverse geocoder returns null. */
+function whichOcean(lat, lon){
+  // Normalize lon to [-180,180]
+  lon = ((lon + 180) % 360 + 360) % 360 - 180;
+
+  if (lat >= 66) return 'Arctic Ocean';
+  if (lat <= -50) return 'Southern Ocean';
+
+  // Indian Ocean: 20E..147E and roughly -60..30 lat
+  if (lon >= 20 && lon <= 147 && lat >= -60 && lat <= 30) return 'Indian Ocean';
+
+  // Atlantic Ocean: -100..20 lon and -60..66 lat
+  if (lon >= -100 && lon <= 20 && lat >= -60 && lat <= 66) return 'Atlantic Ocean';
+
+  // Everything else → Pacific
+  return 'Pacific Ocean';
 }
 
-/* ===== Ocean photos (random) with inline fallback ===== */
+/* ================= Ocean photos (curated IDs) ================= */
+const OCEAN_PHOTOS = {
+  'Pacific Ocean': [
+    // open-ocean, Pacific vibes
+    'photo-1501630834273-4b5604d2ee31',
+    'photo-1505761671935-60b3a7427bad',
+    'photo-1507525428034-b723cf961d3e'
+  ],
+  'Atlantic Ocean': [
+    'photo-1527481138388-0d334d4f04e6',
+    'photo-1500375592092-40eb2168fd21',
+    'photo-1502082553048-f009c37129b9'
+  ],
+  'Indian Ocean': [
+    'photo-1500375592092-40eb2168fd21',
+    'photo-1526483941652-3ea37d90c283',
+    'photo-1524499982525-1ffd58dd89ea'
+  ],
+  'Southern Ocean': [
+    'photo-1519681393784-d120267933ba',
+    'photo-1511497584788-876760111969',
+    'photo-1542652735873-9826d8d2f4b0'
+  ],
+  'Arctic Ocean': [
+    'photo-1501785888041-af3ef285b470',
+    'photo-1519681393784-d120267933ba',
+    'photo-1508261303786-0e1a3f1b9a3d'
+  ]
+};
+// Generate a 192x144 image url from Unsplash ID
+function unsplash(id){ return `https://images.unsplash.com/${id}?auto=format&fit=crop&w=192&h=144&q=70`; }
+
 const FALLBACK_SVG = 'data:image/svg+xml;utf8,'+encodeURIComponent(
  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 72">
    <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
@@ -134,30 +162,40 @@ const FALLBACK_SVG = 'data:image/svg+xml;utf8,'+encodeURIComponent(
    <g fill="#87d2ff" opacity=".9">
      <path d="M10 42c6 0 6-4 12-4s6 4 12 4 6-4 12-4 6 4 12 4 6-4 12-4 6 4 12 4v6c-6 0-6-4-12-4s-6 4-12 4-6-4-12-4-6 4-12 4-6-4-12-4-6 4-12 4v-6z"/>
    </g>
- </svg>`
-);
-const rnd = ()=> (Math.random()*1e9|0);
-function oceanCandidates(){
-  return [
-    `https://source.unsplash.com/192x144/?ocean,sea&sig=${rnd()}`,
-    `https://picsum.photos/192/144?random=${rnd()}`,
-    `https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=192&h=144&q=70`
-  ];
+ </svg>`);
+
+function pickOceanPhoto(name){
+  const list = OCEAN_PHOTOS[name];
+  if(!list || !list.length) return FALLBACK_SVG;
+  const id = list[(Math.random()*list.length)|0];
+  return unsplash(id);
 }
-function loadImage(u){ return new Promise((res,rej)=>{ const i=new Image(); i.onload=()=>res(u); i.onerror=()=>rej(u); i.src=u; }); }
-async function setOceanPhoto(){
-  for(const u of oceanCandidates()){
-    try{ EL.flag.src = await loadImage(u); EL.flag.alt='Ocean'; return; }
-    catch(_){}
-  }
-  EL.flag.src = FALLBACK_SVG; EL.flag.alt='Ocean';
+
+function setOceanVisual(oceanName){
+  EL.flag.src = pickOceanPhoto(oceanName);
+  EL.flag.alt = oceanName;
 }
+
 function setFlagFromISO(iso2, country){
+  if(!iso2){ EL.flag.src = FALLBACK_SVG; EL.flag.alt=''; return; }
   EL.flag.src = `https://flagcdn.com/w160/${iso2.toLowerCase()}.png`;
   EL.flag.alt = `${country||'Flag'}`;
 }
 
-/* ===== 1s clock ===== */
+/* ================= Title helpers ================= */
+function repaint(el){ el.style.display='none'; void el.offsetHeight; el.style.display='block'; }
+function buildTitle(meta, lat, lon){
+  // Prefer ocean (from meta or heuristic), else "Region, Country", else Country
+  let ocean = (meta && meta.ocean) ? String(meta.ocean) : whichOcean(lat, lon);
+  // If meta has a country (land), prefer that instead of ocean
+  if (meta && meta.country) {
+    if (meta.region && meta.country) return `${meta.region}, ${meta.country}`;
+    return meta.country;
+  }
+  return ocean;
+}
+
+/* ================= Live clock ================= */
 function startClock(){
   function tick(){
     EL.utc.textContent = nowUTC();
@@ -166,55 +204,47 @@ function startClock(){
   tick();
 }
 
-/* ===== Force repaint hack (CEF sometimes doesn’t draw first line) ===== */
-function repaint(el){
-  el.style.display='none'; // force layout
-  void el.offsetHeight;
-  el.style.display='block';
-}
-
-/* ===== Main refresh ===== */
+/* ================= Main refresh ================= */
 async function refresh(){
   try{
-    const iss = await fetchISS();
-
-    // Always show something
-    EL.title.textContent = `Lat ${fmt(iss.lat,2)}°, Lon ${fmt(iss.lon,2)}°`;
-    EL.loc.textContent   = EL.title.textContent;
-    repaint(EL.title);
-
-    // Upgrade with region/country + flag/photo
-    reverseGeocode(iss.lat, iss.lon)
-      .then(meta=>{
-        const t = buildTitle(meta);
-        if(t && t!=='—'){
-          EL.title.textContent = t;
-          EL.loc.textContent   = t;
-          repaint(EL.title);
-        }
-        if(meta && meta.iso2){ setFlagFromISO(meta.iso2, meta.country); }
-        else { setOceanPhoto(); }
-      })
-      .catch(()=> setOceanPhoto());
-
+    const iss = await fetchISS(); // {lat, lon, alt_km, speed_kps}
+    // Always show basics fast
     EL.date.textContent  = todayUTC();
     EL.speed.textContent = fmt(iss.speed_kps,2);
     EL.elev.textContent  = fmt(iss.alt_km,0);
+
+    // Default to ocean name via heuristic until RG returns
+    let oceanGuess = whichOcean(iss.lat, iss.lon);
+    EL.title.textContent = oceanGuess;
+    EL.loc.textContent   = oceanGuess;
+    setOceanVisual(oceanGuess);
+    repaint(EL.title);
+
+    // Upgrade with reverse geocode (if land: show flag; if ocean: keep ocean + photo)
+    reverseGeocode(iss.lat, iss.lon).then(meta=>{
+      const title = buildTitle(meta, iss.lat, iss.lon);
+      EL.title.textContent = title;
+      EL.loc.textContent   = title;
+      repaint(EL.title);
+
+      if (meta && meta.country) setFlagFromISO(meta.iso2, meta.country);
+      else setOceanVisual(whichOcean(iss.lat, iss.lon)); // ensure matching photo
+    }).catch(()=>{ /* keep heuristic & photo */ });
+
   }catch(e){
-    // keep prior values; if first run, show basic placeholders
+    // keep prior values on transient failures
   }
 }
 
-/* ===== Start ===== */
+/* ================= Boot ================= */
 startClock();
 refresh();
 setInterval(refresh, REFRESH_MS);
 
-/* Title fallback if APIs are blocked: allow ?title=Something */
+// Optional manual override: ?title=Somewhere
 (function(){
-  const qs = new URLSearchParams(location.search);
-  const t = qs.get('title');
-  if(t){ EL.title.textContent=t; EL.loc.textContent=t; repaint(EL.title); }
+  const t = new URLSearchParams(location.search).get('title');
+  if (t){ EL.title.textContent=t; EL.loc.textContent=t; repaint(EL.title); }
 })();
 </script>
 </body>
