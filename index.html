@@ -4,113 +4,48 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>ISS Info Widget</title>
-<!-- SunCalc for sunrise/sunset -->
 <script src="https://unpkg.com/suncalc@1.9.0/suncalc.js"></script>
 <style>
   :root{
-    --w: 440px;   /* base width */
-    --h: 240px;   /* base height */
-    --bg: #0e0f12;
-    --panel: #171a1f;
-    --muted: #9aa4b2;
-    --text: #e7edf5;
-    --accent: #d33;
-    --ok: #23a559;
-    --card: #101319;
-    --shadow: 0 6px 18px rgba(0,0,0,.45);
-    --radius: 16px;
+    --w: 440px; --h: 240px;
+    --bg:#0e0f12; --panel:#171a1f; --muted:#9aa4b2; --text:#e7edf5;
+    --card:#101319; --radius:16px;
   }
-  html,body{height:100%; background:transparent; margin:0}
-  *{box-sizing:border-box; font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
-
-  .widget{
-    width:var(--w); height:var(--h);
-    display:grid; grid-template-rows: 1fr 84px;
-    gap:8px; padding:8px;
-    background:var(--bg); color:var(--text);
-    border:1px solid #262a34; border-radius:12px;
-    box-shadow:var(--shadow);
-    overflow:hidden;
-  }
-
-  /* Top: big location title */
-  .location{
-    display:flex; align-items:center; justify-content:center;
-    background:linear-gradient(180deg,#12151c, #0e1116);
-    border-radius:10px; border:1px solid #1e2530;
-    font-size:36px; font-weight:600; letter-spacing:.3px;
-    text-align:center; padding:6px 10px;
-  }
-  .location.small{ font-size:28px }
-  .location.tiny{ font-size:22px }
-
-  /* Bottom strip: left flag + LIVE badge | right info */
-  .bottom{
-    display:grid; grid-template-columns: 112px 1fr; gap:8px;
-  }
-  .flagCard{
-    background:var(--card); border:1px solid #1f2430; border-radius:10px;
-    display:grid; grid-template-rows: 1fr 26px; overflow:hidden;
-  }
-  .flagWrap{
-    display:flex; align-items:center; justify-content:center;
-    padding:8px;
-    background: radial-gradient(120% 140% at 50% 0%, #1a2230 0%, #0f141d 60%, #0b0e13 100%);
-  }
-  .flag{
-    width:100%; height:100%; max-width:88px; max-height:60px; object-fit:cover;
-    border-radius:6px; border:1px solid #2a3140; background:#0b0d10;
-  }
-  .live{
-    background:#7e0a0a; color:#fff; font-weight:800; letter-spacing:.5px;
-    display:flex; align-items:center; justify-content:center;
-    font-size:12px; text-transform:uppercase;
-  }
-
-  .info{
-    background:var(--panel); border:1px solid #222937; border-radius:10px;
-    padding:8px 10px; display:grid; grid-template-rows:auto 1fr; gap:6px;
-  }
-  .rowTitle{
-    font-weight:800; color:#cfd7e3; font-size:16px;
-  }
-  .grid{
-    display:grid; grid-template-columns: 1fr 1fr; gap:2px 14px;
-    font-size:13px; line-height:1.3;
-  }
-  .muted{ color:var(--muted) }
-  .mono{ font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace }
-  .dot{ width:8px; height:8px; border-radius:50%; display:inline-block; background:var(--ok); margin-right:6px; box-shadow:0 0 0 2px rgba(35,165,89,.18)}
-  .sep{ opacity:.3 }
-
-  /* Responsive text fit for long names */
-  .fit{ transition:font-size .2s }
+  html,body{height:100%;margin:0;background:transparent}
+  *{box-sizing:border-box;font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+  .widget{width:var(--w);height:var(--h);display:grid;grid-template-rows:1fr 84px;gap:8px;padding:8px;background:var(--bg);color:var(--text);border:1px solid #262a34;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.45);overflow:hidden}
+  .location{display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,#12151c,#0e1116);border-radius:10px;border:1px solid #1e2530;font-size:36px;font-weight:600;letter-spacing:.3px;text-align:center;padding:6px 10px}
+  .location.small{font-size:28px}.location.tiny{font-size:22px}
+  .bottom{display:grid;grid-template-columns:112px 1fr;gap:8px}
+  .flagCard{background:var(--card);border:1px solid #1f2430;border-radius:10px;display:grid;grid-template-rows:1fr 26px;overflow:hidden}
+  .flagWrap{display:flex;align-items:center;justify-content:center;padding:8px;background:radial-gradient(120% 140% at 50% 0%,#1a2230 0%,#0f141d 60%,#0b0e13 100%)}
+  .flag{width:100%;height:100%;max-width:88px;max-height:60px;object-fit:cover;border-radius:6px;border:1px solid #2a3140;background:#0b0d10}
+  .live{background:#7e0a0a;color:#fff;font-weight:800;letter-spacing:.5px;display:flex;align-items:center;justify-content:center;font-size:12px;text-transform:uppercase}
+  .info{background:var(--panel);border:1px solid #222937;border-radius:10px;padding:8px 10px;display:grid;grid-template-rows:auto 1fr;gap:6px}
+  .rowTitle{font-weight:800;color:#cfd7e3;font-size:16px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:2px 14px;font-size:13px;line-height:1.3}
+  .muted{color:var(--muted)} .mono{font-variant-numeric:tabular-nums;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  .dot{width:8px;height:8px;border-radius:50%;display:inline-block;background:#23a559;margin-right:6px;box-shadow:0 0 0 2px rgba(35,165,89,.18)}
+  .fit{transition:font-size .2s}
 </style>
 </head>
 <body>
 <div class="widget" id="widget">
   <div class="location fit" id="loc">Loading…</div>
-
   <div class="bottom">
     <div class="flagCard">
-      <div class="flagWrap">
-        <img id="flag" class="flag" alt="Flag" />
-      </div>
+      <div class="flagWrap"><img id="flag" class="flag" alt="Flag"/></div>
       <div class="live"><span class="dot"></span>LIVE NOW</div>
     </div>
-
     <div class="info">
       <div class="rowTitle" id="eventTitle">Next: —</div>
       <div class="grid">
         <div><span class="muted">UTC</span> <span class="mono" id="utc">—</span></div>
         <div><span class="muted">Date</span> <span class="mono" id="date">—</span></div>
-
         <div><span class="muted">Speed</span> <span class="mono" id="speed">—</span></div>
         <div><span class="muted">Elev</span> <span class="mono" id="alt">—</span></div>
-
         <div><span class="muted">Coords</span> <span class="mono" id="coords">—</span></div>
         <div><span class="muted">Capital</span> <span class="mono" id="capital">—</span></div>
-
         <div><span class="muted">Density</span> <span class="mono" id="density">—</span></div>
         <div><span class="muted">Poverty</span> <span class="mono" id="poverty">—</span></div>
       </div>
@@ -119,152 +54,177 @@
 </div>
 
 <script>
-/* ======= SETTINGS ======= */
-const REFRESH_MS = 5000;        // how often to update from APIs
-const TEXT_MAX = 20;            // start shrinking title beyond this length
-/* ======================== */
-
-const el = (id)=>document.getElementById(id);
-
-/* Small helper: formatters */
-const fmt = new Intl.NumberFormat('en-US', {maximumFractionDigits: 2});
-const fmt3 = new Intl.NumberFormat('en-US', {maximumFractionDigits: 3});
-const pct = (x)=> (x==null||isNaN(x) ? '—' : (Math.round(x*10)/10).toFixed(1)+'%');
+const REFRESH_MS = 5000;
+const TEXT_MAX = 20;
+const el = id => document.getElementById(id);
+const fmt  = new Intl.NumberFormat('en-US',{maximumFractionDigits:2});
+const fmt3 = new Intl.NumberFormat('en-US',{maximumFractionDigits:3});
+const pct = x => (x==null||isNaN(x)?'—':(Math.round(x*10)/10).toFixed(1)+'%');
 
 function fitTitle(text){
   const node = el('loc');
   node.classList.remove('small','tiny');
-  node.textContent = text;
-  if(text.length > TEXT_MAX && text.length <= 28) node.classList.add('small');
-  if(text.length > 28) node.classList.add('tiny');
+  node.textContent = text || '—';
+  if(text && text.length > TEXT_MAX && text.length <= 28) node.classList.add('small');
+  if(text && text.length > 28) node.classList.add('tiny');
 }
 
-/* Main polling loop */
+/* -------- Robust reverse geocoder (no keys) ---------- */
+async function reverseGeocode(lat, lon){
+  // 1) BigDataCloud
+  try{
+    const r = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`);
+    if(r.ok){
+      const j = await r.json();
+      let ocean = null;
+      if(j?.localityInfo?.informative){
+        const o = j.localityInfo.informative.find(x => /ocean/i.test(x.description||x.name||''));
+        if(o) ocean = o.name || o.description;
+      }
+      if(j.countryName || ocean){
+        return {
+          countryName: j.countryName || null,
+          iso2: j.countryCode || null,
+          region: j.principalSubdivision || j.locality || null,
+          oceanName: ocean
+        };
+      }
+    }
+  }catch(e){}
+
+  // 2) maps.co (Nominatim mirror)
+  try{
+    const r = await fetch(`https://geocode.maps.co/reverse?lat=${lat}&lon=${lon}`);
+    if(r.ok){
+      const j = await r.json();
+      const a = j.address || {};
+      const ocean = a.ocean || a.water || null;
+      return {
+        countryName: a.country || null,
+        iso2: (a.country_code ? a.country_code.toUpperCase() : null),
+        region: a.state || a.county || a.region || null,
+        oceanName: ocean
+      };
+    }
+  }catch(e){}
+
+  // 3) Nominatim direct
+  try{
+    const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`);
+    if(r.ok){
+      const j = await r.json();
+      const a = j.address || {};
+      const ocean = a.ocean || a.water || null;
+      return {
+        countryName: a.country || null,
+        iso2: (a.country_code ? a.country_code.toUpperCase() : null),
+        region: a.state || a.county || a.region || null,
+        oceanName: ocean
+      };
+    }
+  }catch(e){}
+
+  return {countryName:null, iso2:null, region:null, oceanName:null};
+}
+
+/* -------------- Main update loop ------------------ */
 async function tick(){
   try{
-    // 1) Where is the ISS?
+    // ISS state
     const iss = await fetch('https://api.wheretheiss.at/v1/satellites/25544').then(r=>r.json());
     const lat = iss.latitude, lon = iss.longitude;
-    const altKm = iss.altitude; // in km
-    const speedKps = (iss.velocity/3600); // velocity is km/h -> km/s
+    const altKm = iss.altitude;               // km
+    const speedKps = (iss.velocity/3600);     // km/s
 
-    // 2) Reverse geocode -> country / region / ocean
-    const place = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`).then(r=>r.json());
+    // Reverse geocode (robust)
+    const place = await reverseGeocode(lat, lon);
+    const overOcean = !place.countryName && !!place.oceanName;
 
-    let countryName = place.countryName || null;
-    let iso2 = place.countryCode || null;
-    let region = place.principalSubdivision || place.locality || null;
-
-    // If over ocean, BigDataCloud provides 'localityInfo' entries
-    let oceanName = null;
-    if(place && place.localityInfo && Array.isArray(place.localityInfo.informative)){
-      const oceanEntry = place.localityInfo.informative.find(x => /ocean/i.test(x.description||x.name||''));
-      if(oceanEntry) oceanName = oceanEntry.name || oceanEntry.description;
-    }
-    const overOcean = !countryName && !!oceanName;
-
-    // 3) Title line
     if(overOcean){
-      fitTitle(oceanName || 'Open Ocean');
+      fitTitle(place.oceanName || 'Open Ocean');
     }else{
-      fitTitle(region ? `${region}, ${countryName}` : countryName || '—');
+      fitTitle(place.region ? `${place.region}, ${place.countryName}` : (place.countryName || '—'));
     }
 
-    // 4) Flag (hide if ocean)
+    // Flag
     const flagEl = el('flag');
-    if(iso2){
-      flagEl.src = `https://flagcdn.com/w80/${iso2.toLowerCase()}.png`;
+    if(place.iso2){
+      flagEl.src = `https://flagcdn.com/w80/${place.iso2.toLowerCase()}.png`;
       flagEl.style.opacity = '1';
     }else{
       flagEl.removeAttribute('src');
       flagEl.style.opacity = '0.25';
     }
 
-    // 5) Next sunrise/sunset using SunCalc (times returned in local tz; we display UTC)
+    // Sun events
     const now = new Date();
-    const times = SunCalc.getTimes(now, lat, lon);
-    const nextSet = times.sunset;
-    const nextRise = times.sunrise;
-    // Pick whichever is next in future
-    let label = 'Next:', ts = null;
+    const timesToday = SunCalc.getTimes(now, lat, lon);
     const candidates = [
-      {name:'Sunrise', t: nextRise},
-      {name:'Sunset',  t: nextSet}
-    ].filter(x => x.t && x.t.getTime() > now.getTime())
-     .sort((a,b)=>a.t-b.t);
+      {name:'Sunrise', t: timesToday.sunrise},
+      {name:'Sunset',  t: timesToday.sunset}
+    ].filter(x => x.t && x.t.getTime() > now.getTime()).sort((a,b)=>a.t-b.t);
 
+    let label, ts;
     if(candidates.length){
-      label = `Next: ${candidates[0].name}`;
-      ts = candidates[0].t;
+      label = `Next: ${candidates[0].name}`; ts = candidates[0].t;
     }else{
-      // If both happened already today, use tomorrow’s sunrise
-      const tomorrow = new Date(now.getTime()+86400000);
-      const t2 = SunCalc.getTimes(tomorrow, lat, lon);
-      label = 'Next: Sunrise';
-      ts = t2.sunrise;
+      const tmr = new Date(now.getTime()+86400000);
+      const t2 = SunCalc.getTimes(tmr, lat, lon);
+      label = 'Next: Sunrise'; ts = t2.sunrise;
     }
     el('eventTitle').textContent = label;
 
-    // 6) Side details
-    const pad = (n)=> String(n).padStart(2,'0');
-    const toUTCDate = (d)=> `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`;
-    const toUTCTime = (d)=> `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
+    const pad = n => String(n).padStart(2,'0');
+    const toUTCDate = d => `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`;
+    const toUTCTime = d => `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
 
-    el('utc').textContent  = ts ? toUTCTime(ts) + ' UTC' : '—';
-    el('date').textContent = ts ? toUTCDate(ts) : toUTCDate(new Date());
-
+    el('utc').textContent   = ts ? toUTCTime(ts)+' UTC' : '—';
+    el('date').textContent  = ts ? toUTCDate(ts) : toUTCDate(new Date());
     el('speed').textContent = fmt3.format(speedKps) + ' km/s';
     el('alt').textContent   = fmt.format(altKm) + ' km';
     el('coords').textContent= `${fmt3.format(Math.abs(lat))}° ${lat>=0?'N':'S'}, ${fmt3.format(Math.abs(lon))}° ${lon>=0?'E':'W'}`;
 
-    // 7) Country facts (capital, population density)
+    // Country facts
     let capital='—', density='—', population=null, area=null;
-    if(iso2){
+    if(place.iso2){
       try{
-        const rest = await fetch(`https://restcountries.com/v3.1/alpha/${iso2}`).then(r=>r.json());
+        const rest = await fetch(`https://restcountries.com/v3.1/alpha/${place.iso2}`).then(r=>r.json());
         const r = Array.isArray(rest) ? rest[0] : rest;
         capital = (r && r.capital && r.capital[0]) ? r.capital[0] : '—';
         population = r?.population || null;
         area = r?.area || null;
-        if(population && area){
-          density = `${fmt.format(population/area)} ppl/km²`;
-        }
+        if(population && area){ density = `${fmt.format(population/area)} ppl/km²`; }
       }catch(e){}
     }
     el('capital').textContent = capital;
     el('density').textContent = density;
 
-    // 8) Poverty (World Bank) — may be unavailable for many countries
+    // Poverty (World Bank)
     let povText = '—';
-    if(iso2){
+    if(place.iso2){
       try{
-        const wb = await fetch(`https://api.worldbank.org/v2/country/${iso2}/indicator/SI.POV.DDAY?format=json&per_page=60`).then(r=>r.json());
-        // Find the most recent non-null value
+        const wb = await fetch(`https://api.worldbank.org/v2/country/${place.iso2}/indicator/SI.POV.DDAY?format=json&per_page=60`).then(r=>r.json());
         const series = (wb && wb[1]) ? wb[1] : [];
         const latest = series.find(x => x.value !== null);
-        if(latest && typeof latest.value === 'number'){
-          povText = pct(latest.value);
-        }
+        if(latest && typeof latest.value === 'number'){ povText = pct(latest.value); }
       }catch(e){}
     }
     el('poverty').textContent = povText;
 
   }catch(err){
-    // Soft-fail UI if anything breaks; keep last good values visible
     console.error(err);
   }
 }
 
-/* Live UTC clock (for smooth time display even between API ticks) */
+/* Smooth clock even between API polls */
 function tickClock(){
   const now = new Date();
-  const pad = (n)=> String(n).padStart(2,'0');
+  const pad = n => String(n).padStart(2,'0');
   el('date').textContent = `${now.getUTCFullYear()}-${pad(now.getUTCMonth()+1)}-${pad(now.getUTCDate())}`;
   el('utc').textContent  = `${pad(now.getUTCHours())}:${pad(now.getUTCMinutes())}:${pad(now.getUTCSeconds())} UTC`;
 }
 
-/* Kickoff */
-tick();                // first fetch
+tick();
 setInterval(tick, REFRESH_MS);
 setInterval(tickClock, 1000);
 </script>
