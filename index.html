@@ -10,37 +10,33 @@
 <script src="https://unpkg.com/suncalc@1.9.0/suncalc.js"></script>
 <style>
 :root{
-  --w: 620px;          /* tweak this if you want a different width */
-  --h: 240px;
+  --w: 620px;         /* width of the widget */
+  --h: 240px;         /* height when country panel is visible */
   --bg:#0b0f15; --panel:#121823; --muted:#96a0b4; --text:#eaf2ff; --card:#0f141e;
-  --accent:#1da1f2; --live:#bf1d1d; --ring:#101319;
 }
 *{box-sizing:border-box}
 html,body{height:100%;margin:0;background:transparent;font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
-.widget{width:var(--w); height:var(--h); display:grid; grid-template-rows: 1fr auto; gap:10px;
-  padding:10px; border:1px solid #263246; background:radial-gradient(100% 140% at 50% 0%, #14233b 0%, #0e1116 100%);
-  color:var(--text); border-radius:16px; box-shadow:0 12px 30px rgba(0,0,0,.35);
+.widget{width:var(--w); min-height:180px; display:grid; grid-template-rows:auto 1fr; gap:10px;
+  padding:10px; border:1px solid #263246; border-radius:16px;
+  background:radial-gradient(100% 140% at 50% 0%, #14233b 0%, #0e1116 100%);
+  color:var(--text); box-shadow:0 12px 30px rgba(0,0,0,.35);
 }
-.title{display:flex; align-items:center; padding:14px; border-radius:12px; background:
-  linear-gradient(180deg,#10151f,#0b0f14 55%,#0b0f14); border:1px solid #1f2632; box-shadow: inset 0 0 0 1px #0a0f17;
-  letter-spacing:.5px; }
-.title span{font-weight:800; font-size:32px; line-height:1; text-shadow:0 1px 0 #000; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.title{display:flex; align-items:center; padding:12px 14px; border-radius:12px;
+  background:linear-gradient(180deg,#10151f,#0b0f14 55%,#0b0f14); border:1px solid #1f2632; }
+.title span{font-weight:800; font-size:32px; line-height:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
 .bottom{display:grid; grid-template-columns:110px 1fr; gap:10px}
-.flagCard{position:relative; background:linear-gradient(180deg,#0f141d,#0b0f14); border:1px solid #1e2634; border-radius:12px; display:grid; place-items:center}
+.flagCard{position:relative; background:linear-gradient(180deg,#0f141d,#0b0f14); border:1px solid #1e2634; border-radius:12px; display:grid; place-items:center; min-height:110px}
 .flagWrap{width:88px; height:56px; display:grid; place-items:center; overflow:hidden; border-radius:8px; background:#0d1320; border:1px solid #0d2133}
 .flag{width:100%; height:100%; object-fit:cover}
 .live{position:absolute; left:10px; bottom:10px; font-weight:800; letter-spacing:.4px; font-size:12px;
-  padding:6px 10px; border-radius:8px; background:#851414; border:1px solid #6a1212; color:#fff;
-  box-shadow: inset 0 -2px 0 rgba(255,255,255,.05), 0 3px 12px rgba(0,0,0,.35);
-}
-.info{background:linear-gradient(180deg,#0f141d,#0b0f14); border:1px solid #1e2634; border-radius:12px; padding:12px 14px; display:grid; gap:6px}
+  padding:6px 10px; border-radius:8px; background:#bf1d1d; border:1px solid #9f1717; color:#fff}
+.info{background:linear-gradient(180deg,#0f141d,#0b0f14); border:1px solid #1e2634; border-radius:12px; padding:12px 14px; display:grid; gap:8px}
 .rowTitle{font-weight:800; font-size:18px}
-.grid{display:grid; grid-template-columns:1fr 1fr; gap:10px 18px; align-items:baseline; font-size:14px}
-.k{color:var(--muted)}
+.grid{display:grid; grid-template-columns:140px 1fr; gap:6px 16px; align-items:baseline; font-size:14px}
+.k{color:#9bb0c9}
 .v strong{font-variant-numeric:tabular-nums}
-.muted{color:var(--muted)}
-.skeleton{opacity:.5}
-small{font-size:12px; color:var(--muted)}
+.muted{color:#96a0b4}
+.hidden{display:none}
 @media (max-width:520px){ .title span{font-size:26px} .live{display:none} }
 </style>
 </head>
@@ -55,20 +51,22 @@ small{font-size:12px; color:var(--muted)}
       </div>
 
       <div class="info">
-        <div class="rowTitle"><span id="nextLbl">Next: —</span></div>
+        <div class="rowTitle" id="nextLbl">Next: —</div>
 
-        <div class="grid" style="margin-top:2px">
-          <div class="k">UTC:</div>   <div class="v"><strong id="utc">—</strong> <small>UTC</small></div>
+        <div class="grid">
+          <div class="k">UTC:</div>   <div class="v"><strong id="utc">—</strong> <span class="muted">UTC</span></div>
           <div class="k">Date:</div>  <div class="v"><strong id="date">—</strong></div>
-          <div class="k">Speed:</div> <div class="v"><strong id="spd">—</strong> <small>km/s</small></div>
-          <div class="k">Elev:</div>  <div class="v"><strong id="alt">—</strong> <small>km</small></div>
+          <div class="k">Speed:</div> <div class="v"><strong id="spd">—</strong>  <span class="muted">km/s</span></div>
+          <div class="k">Elev:</div>  <div class="v"><strong id="alt">—</strong>  <span class="muted">km</span></div>
         </div>
 
-        <div class="rowTitle" style="margin-top:6px">Country Information</div>
-        <div class="grid">
-          <div class="k">Capital:</div> <div class="v" id="cap">—</div>
-          <div class="k">Density:</div> <div class="v" id="dens">—</div>
-          <div class="k">Poverty:</div> <div class="v" id="pov">—</div>
+        <div id="factsBlock">
+          <div class="rowTitle" style="margin-top:4px">Country Information</div>
+          <div class="grid">
+            <div class="k">Capital:</div> <div class="v" id="cap">—</div>
+            <div class="k">Density:</div> <div class="v" id="dens">—</div>
+            <div class="k">Poverty:</div> <div class="v" id="pov">—</div>
+          </div>
         </div>
       </div>
     </div>
@@ -77,22 +75,16 @@ small{font-size:12px; color:var(--muted)}
 <script>
 const API = "https://iss-live.charlesleahy.workers.dev";
 
-const el = id => document.getElementById(id);
-const locText = el('locText'), flag = el('flag'),
-      utc = el('utc'), date = el('date'), spd = el('spd'), alt = el('alt'),
-      cap = el('cap'), dens = el('dens'), pov = el('pov'), nextLbl = el('nextLbl');
+const $ = id => document.getElementById(id);
+const locText = $('locText'), flag = $('flag'), factsBlock = $('factsBlock'),
+      utc = $('utc'), date = $('date'), spd = $('spd'), alt = $('alt'),
+      cap = $('cap'), dens = $('dens'), pov = $('pov'), nextLbl = $('nextLbl');
 
-function fmt2(n){ return String(Math.floor(n)).padStart(2,'0'); }
-function pad(num,dp=0){ return Number(num).toFixed(dp); }
-function toDM(lat,lon){
-  const sn = lat>=0?'N':'S', we = lon>=0?'E':'W';
-  return `${Math.abs(lat).toFixed(2)}° ${sn}, ${Math.abs(lon).toFixed(2)}° ${we}`;
-}
-function setText(node, val){ node.textContent = (val ?? '—'); }
+function z2(n){ return String(Math.floor(n)).padStart(2,'0'); }
+function setText(node, v){ node.textContent = (v ?? '—'); }
 
-async function getJSON(url, timeout=8000){
-  const ac = new AbortController();
-  const t = setTimeout(()=>ac.abort(), timeout);
+async function getJSON(url, timeout=9000){
+  const ac = new AbortController(); const t = setTimeout(()=>ac.abort(), timeout);
   try{
     const r = await fetch(url, {signal: ac.signal, headers:{'cache-control':'no-cache'}});
     if(!r.ok) throw new Error(r.status);
@@ -100,103 +92,80 @@ async function getJSON(url, timeout=8000){
   } finally { clearTimeout(t); }
 }
 
-// compute next sunrise/sunset label + countdown for lat/lon
-function nextSunStr(lat, lon){
+function formatNext(lat, lon){
   const now = new Date();
-  const t0 = SunCalc.getTimes(now, lat, lon);
-  const t1 = SunCalc.getTimes(new Date(now.getTime()+86400000), lat, lon);
-
-  const candidates = [
-    {kind:"Sunrise", at:t0.sunrise},
-    {kind:"Sunset",  at:t0.sunset},
-    {kind:"Sunrise", at:t1.sunrise},
-    {kind:"Sunset",  at:t1.sunset},
-  ].filter(x=>x.at && x.at>now).sort((a,b)=>a.at-b.at);
-
-  if(!candidates.length) return "Next: —";
-
-  const nxt = candidates[0];
-  const ms = nxt.at - now;
-  const h = Math.floor(ms/3600000), m = Math.floor((ms%3600000)/60000);
-  return `Next: ${nxt.kind} in ${h} h ${m} m`;
+  const today  = SunCalc.getTimes(now, lat, lon);
+  const tomorrow = SunCalc.getTimes(new Date(now.getTime()+86400000), lat, lon);
+  const cand = [
+    {kind:"Sunrise", t: today.sunrise}, {kind:"Sunset", t: today.sunset},
+    {kind:"Sunrise", t: tomorrow.sunrise}, {kind:"Sunset", t: tomorrow.sunset}
+  ].filter(x=>x.t && x.t>now).sort((a,b)=>a.t-b.t)[0];
+  if(!cand) return "Next: —";
+  const ms = cand.t - now, h = Math.floor(ms/3600000), m = Math.floor((ms%3600000)/60000);
+  return `Next: ${cand.kind} at ${z2(cand.t.getUTCHours())}:${z2(cand.t.getUTCMinutes())} UTC (in ${h} h ${m} m)`;
 }
 
 function setFlag(iso2, oceanName){
   if (oceanName){
-    // simple ocean icon
     flag.src = "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f30a.svg";
     flag.alt = "Ocean";
     return;
   }
-  if(!iso2){ flag.removeAttribute('src'); flag.alt=''; return; }
-  const code = iso2.toLowerCase();
-  // crisp, fast flag CDN
-  flag.src = `https://flagcdn.com/w80/${code}.png`;
+  if (!iso2){ flag.removeAttribute('src'); flag.alt=''; return; }
+  flag.src = `https://flagcdn.com/w80/${iso2.toLowerCase()}.png`;
   flag.alt = iso2;
 }
-
 function setTitle(region, country, ocean){
-  if (ocean){
-    setText(locText, ocean);
-  } else if (region && country){
-    setText(locText, `${region}, ${country}`);
-  } else {
-    setText(locText, country || '—');
-  }
+  if (ocean) setText(locText, ocean);
+  else if (region && country) setText(locText, `${region}, ${country}`);
+  else setText(locText, country || '—');
 }
 
 function tickClock(){
   const d = new Date();
-  setText(utc, `${fmt2(d.getUTCHours())}:${fmt2(d.getUTCMinutes())}:${fmt2(d.getUTCSeconds())}`);
+  setText(utc, `${z2(d.getUTCHours())}:${z2(d.getUTCMinutes())}:${z2(d.getUTCSeconds())}`);
   setText(date, d.toISOString().slice(0,10));
 }
 setInterval(tickClock, 1000); tickClock();
 
 async function refresh(){
   try{
-    // 1) Get ISS position/speed
     const iss = await getJSON(`${API}/iss?ts=${Date.now()}`);
     const { lat, lon, alt_km, speed_kps } = iss || {};
-    setText(spd, Number.isFinite(speed_kps)? speed_kps.toFixed(2) : '—');
-    setText(alt, Number.isFinite(alt_km)? Math.round(alt_km) : '—');
+    setText(spd, Number.isFinite(speed_kps) ? speed_kps.toFixed(2) : '—');
+    setText(alt, Number.isFinite(alt_km) ? Math.round(alt_km) : '—');
 
-    // 2) Title + reverse geocode
-    let country=null, region=null, iso2=null, ocean=null;
+    // Next event
+    try{ setText(nextLbl, formatNext(lat, lon)); }catch{ setText(nextLbl, "Next: —"); }
+
+    // Reverse geocode
+    let iso2=null, country=null, region=null, ocean=null;
     try{
       const rg = await getJSON(`${API}/rg?lat=${lat}&lon=${lon}`);
-      country = rg?.country; region = rg?.region; iso2 = rg?.iso2; ocean = rg?.ocean;
+      iso2 = (rg && rg.iso2) || null; country = rg?.country||null; region = rg?.region||null; ocean = rg?.ocean||null;
       setTitle(region, country, ocean);
       setFlag(iso2, ocean);
     }catch{
-      setTitle(null, null, null);
-      setFlag(null, null);
+      setTitle(null,null,null); setFlag(null,null);
     }
 
-    // 3) Sun time string
-    try{
-      setText(nextLbl, nextSunStr(lat, lon));
-    }catch{ setText(nextLbl, "Next: —"); }
-
-    // 4) Country facts (only if over land with ISO2)
+    // Country facts: show only over land
     if (iso2){
+      factsBlock.classList.remove('hidden');
       try{
         const f = await getJSON(`${API}/facts?iso2=${iso2}`);
         setText(cap,  f?.capital || '—');
         setText(dens, f?.density || '—');
         setText(pov,  f?.poverty || '—');
-      }catch{
-        setText(cap,'—'); setText(dens,'—'); setText(pov,'—');
-      }
+      }catch{ setText(cap,'—'); setText(dens,'—'); setText(pov,'—'); }
     } else {
-      setText(cap,'—'); setText(dens,'—'); setText(pov,'—');
+      factsBlock.classList.add('hidden'); // hide panel over oceans
     }
 
   }catch(e){
-    // In case /iss fails, leave last-known values on screen
     console.error(e);
   }
 }
-// refresh often enough to look “live” but be nice to APIs
 refresh();
 setInterval(refresh, 15000);
 </script>
