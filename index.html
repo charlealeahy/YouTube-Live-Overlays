@@ -137,7 +137,7 @@ const fetchISS  = ()=> getJSON(`${API_BASE}/iss`);
 const fetchRG   = (lat,lon)=> getJSON(`${API_BASE}/rg?lat=${lat}&lon=${lon}&lang=en`); // ask for English if supported
 const fetchFacts= (iso2)=> iso2 ? getJSON(`${API_BASE}/facts?iso2=${iso2}`) : Promise.resolve({});
 
-/* ===== English-only country names ===== */
+/* ===== English-only helpers ===== */
 const hasIntl = (typeof Intl!=='undefined' && Intl.DisplayNames);
 const enDisplay = hasIntl ? new Intl.DisplayNames(['en'], {type:'region'}) : null;
 const ISO2_EN = {
@@ -154,6 +154,7 @@ function countryNameEN(iso2, fallbackCountry){
   try{ if(enDisplay){ const n = enDisplay.of(code); if(n) return n; } }catch(_){}
   return ISO2_EN[code] || fallbackCountry || code;
 }
+const englishText = s => (typeof s==='string') ? s.normalize('NFD').replace(/[\u0300-\u036f]/g,'') : s;
 
 /* ===== Ocean name heuristic (English) ===== */
 function whichOcean(lat, lon){
@@ -165,7 +166,7 @@ function whichOcean(lat, lon){
   return 'Pacific Ocean';
 }
 
-/* ===== Fixed ocean image ONLY (your request) ===== */
+/* ===== Fixed ocean image ONLY (as requested) ===== */
 const OCEAN_STATIC =
   "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=192&h=144&q=70";
 async function setOceanPicture(){ if(EL.flag.src !== OCEAN_STATIC){ EL.flag.src = OCEAN_STATIC; EL.flag.alt = 'Ocean'; } }
@@ -175,6 +176,7 @@ function setFlagFromISO(iso2){ EL.flag.src = `https://flagcdn.com/w160/${iso2.to
 
 /* ==================== SLIDES (no headings, same panel) ==================== */
 let slideIdx = 0, slideTimer = null, currentSlides = []; // each slide = () => render grid rows
+let lastSlidesKey = '';
 
 function setGridRows(rows){
   // rows: array of [label, value, unit?]
@@ -196,24 +198,29 @@ function slideStats(iss){
   ]);
 }
 function slideCountry(facts){
-  const strip = s => (typeof s==='string') ? s.normalize('NFD').replace(/[\u0300-\u036f]/g,'') : s;
+  const strip = englishText;
   return ()=> setGridRows([
     ['Capital', strip(facts.capital) ?? '—', ''],
     ['Density', facts.density ?? '—', ''],
     ['Poverty', facts.poverty ?? '—', ''],
   ]);
 }
-function startSlides(){
-  if(!currentSlides.length){ EL.grid.innerHTML=''; return; }
+function startSlides(forceKey=''){
+  const key = forceKey || String(currentSlides.length);
+  if (slideTimer){ clearInterval(slideTimer); slideTimer = null; }
   slideIdx = 0;
-  currentSlides[0]();
-  if(slideTimer) clearInterval(slideTimer);
-  if(currentSlides.length>1){
-    slideTimer = setInterval(()=>{
-      slideIdx = (slideIdx+1) % currentSlides.length;
-      currentSlides[slideIdx]();
-    }, SLIDE_MS);
+  if (currentSlides.length){
+    currentSlides[0]();
+    if(currentSlides.length>1){
+      slideTimer = setInterval(()=>{
+        slideIdx = (slideIdx+1) % currentSlides.length;
+        currentSlides[slideIdx]();
+      }, SLIDE_MS);
+    }
+  } else {
+    EL.grid.innerHTML='';
   }
+  lastSlidesKey = key;
 }
 /* keep UTC ticking every second on the stats slide without rerendering all rows */
 function startClock(){
@@ -239,33 +246,51 @@ async function refresh(){
   try{
     const iss = await fetchISS(); // {lat,lon,alt_km,speed_kps}
 
-    // Default: ocean name + fixed ocean photo (so image never changes over water)
-    let title = whichOcean(iss.lat, iss.lon);
-    EL.title.textContent = title; repaint(EL.title);
-    currentSlides = [ slideStats(iss) ];
-    startSlides();
+    // Default: over ocean until RG says otherwise
+    EL.title.textContent = whichOcean(iss.lat, iss.lon); repaint(EL.title);
     setOceanPicture();
 
-    // Try to upgrade with reverse geocode + facts (land case)
+    // Slides default = Stats only
+    currentSlides = [ slideStats(iss) ];
+    startSlides('ocean');
+
+    // Upgrade with reverse geocode (land/ocean details)
     fetchRG(iss.lat, iss.lon).then(async (meta)=>{
       if (meta && meta.iso2){
-        // English country name (never localized)
-        const enName = countryNameEN(meta.iso2, meta.country);
-        EL.title.textContent = enName; repaint(EL.title);
+        // Build "City, Country" (English-only, with fallbacks)
+        const country = countryNameEN(meta.iso2, meta.country);
+        const city = englishText(
+          meta.city || meta.locality || meta.town || meta.village || meta.municipality || meta.name || ''
+        );
+        const region = englishText(meta.region || meta.admin1 || '');
+        const title =
+          city ? `${city}, ${country}` :
+          region ? `${region}, ${country}` :
+          country;
+
+        EL.title.textContent = title; repaint(EL.title);
         setFlagFromISO(meta.iso2);
 
-        // Stats + Country slides
-        let facts={}; try{ facts = await fetchFacts(meta.iso2); }catch(_){}
-        currentSlides = [ slideStats(iss), slideCountry(facts||{}) ];
+        // Ensure the Country Info slide appears even if facts fail:
+        let facts = {capital:'—', density:'—', poverty:'—'};
+        try{
+          const f = await fetchFacts(meta.iso2);
+          if (f && typeof f === 'object') facts = Object.assign(facts, f);
+        }catch(_){ /* keep placeholders */ }
+
+        currentSlides = [ slideStats(iss), slideCountry(facts) ];
+        startSlides('land');
+
       } else {
-        // Stay ocean: keep English ocean name & fixed photo
-        title = whichOcean(iss.lat, iss.lon);
-        EL.title.textContent = title; repaint(EL.title);
+        // Stay ocean (English name from heuristic, fixed photo)
+        EL.title.textContent = whichOcean(iss.lat, iss.lon); repaint(EL.title);
         setOceanPicture();
         currentSlides = [ slideStats(iss) ];
+        startSlides('ocean');
       }
-      startSlides();
-    }).catch(()=>{/* keep ocean fallback */});
+    }).catch(()=>{
+      // keep ocean defaults
+    });
 
   }catch(_){
     // leave previous render; clock still ticking
