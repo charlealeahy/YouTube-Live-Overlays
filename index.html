@@ -103,6 +103,10 @@ const API_BASE   = 'https://iss-live.charlesleahy.workers.dev'; // change if nee
 const REFRESH_MS = 6000;   // fetch ISS + reverse geocode cadence
 const SLIDE_MS   = 7000;   // rotate between Stats <-> Country when on land
 
+/* Debounce/anti-flicker parameters */
+const HYSTERESIS_SAMPLES = 2;   // need 2 consecutive identical detections before switching mode
+const HYSTERESIS_MAX_AGE = 30000; // keep mode at least 30s before allowing a flip (extra stability)
+
 /* ==================== ELEMENTS ==================== */
 const EL = {
   title: document.getElementById('title'),
@@ -134,7 +138,7 @@ function getJSON(url, timeout=8000){
   });
 }
 const fetchISS  = ()=> getJSON(`${API_BASE}/iss`);
-const fetchRG   = (lat,lon)=> getJSON(`${API_BASE}/rg?lat=${lat}&lon=${lon}&lang=en`); // ask for English if supported
+const fetchRG   = (lat,lon)=> getJSON(`${API_BASE}/rg?lat=${lat}&lon=${lon}&lang=en`);
 const fetchFacts= (iso2)=> iso2 ? getJSON(`${API_BASE}/facts?iso2=${iso2}`) : Promise.resolve({});
 
 /* ===== English-only helpers ===== */
@@ -166,20 +170,18 @@ function whichOcean(lat, lon){
   return 'Pacific Ocean';
 }
 
-/* ===== Fixed ocean image ONLY (as requested) ===== */
+/* ===== Fixed ocean image ONLY ===== */
 const OCEAN_STATIC =
   "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=192&h=144&q=70";
-async function setOceanPicture(){ if(EL.flag.src !== OCEAN_STATIC){ EL.flag.src = OCEAN_STATIC; EL.flag.alt = 'Ocean'; } }
+function setOceanPicture(){ if(EL.flag.src !== OCEAN_STATIC){ EL.flag.src = OCEAN_STATIC; EL.flag.alt = 'Ocean'; } }
 
 /* ===== Flag image for land ===== */
 function setFlagFromISO(iso2){ EL.flag.src = `https://flagcdn.com/w160/${iso2.toLowerCase()}.png`; EL.flag.alt = 'Flag'; }
 
-/* ==================== SLIDES (no headings, same panel) ==================== */
-let slideIdx = 0, slideTimer = null, currentSlides = []; // each slide = () => render grid rows
-let lastSlidesKey = '';
+/* ==================== SLIDES ==================== */
+let slideIdx = 0, slideTimer = null, currentSlides = [];
 
 function setGridRows(rows){
-  // rows: array of [label, value, unit?]
   EL.grid.innerHTML = '';
   for(const [k,v,unit] of rows){
     const kEl = document.createElement('div'); kEl.className='k'; kEl.textContent = k + ' :';
@@ -205,24 +207,19 @@ function slideCountry(facts){
     ['Poverty', facts.poverty ?? '—', ''],
   ]);
 }
-function startSlides(forceKey=''){
-  const key = forceKey || String(currentSlides.length);
-  if (slideTimer){ clearInterval(slideTimer); slideTimer = null; }
+function startSlides(){
+  if(slideTimer){ clearInterval(slideTimer); slideTimer = null; }
   slideIdx = 0;
-  if (currentSlides.length){
-    currentSlides[0]();
-    if(currentSlides.length>1){
-      slideTimer = setInterval(()=>{
-        slideIdx = (slideIdx+1) % currentSlides.length;
-        currentSlides[slideIdx]();
-      }, SLIDE_MS);
-    }
-  } else {
-    EL.grid.innerHTML='';
+  if(!currentSlides.length){ EL.grid.innerHTML=''; return; }
+  currentSlides[0]();
+  if(currentSlides.length>1){
+    slideTimer = setInterval(()=>{
+      slideIdx = (slideIdx+1) % currentSlides.length;
+      currentSlides[slideIdx]();
+    }, SLIDE_MS);
   }
-  lastSlidesKey = key;
 }
-/* keep UTC ticking every second on the stats slide without rerendering all rows */
+/* live clock updates the UTC row each second if visible */
 function startClock(){
   function tick(){
     const labels = EL.grid.querySelectorAll('.k');
@@ -238,62 +235,113 @@ function startClock(){
   tick();
 }
 
-/* repaint helper to coax older CEF into painting the first line */
+/* repaint helper for older CEF */
 function repaint(el){ el.style.display='none'; void el.offsetHeight; el.style.display='block'; }
+
+/* ==================== STATE & ANTI-FLICKER ==================== */
+let stableMode = 'ocean'; // 'ocean' | 'land'
+let stableSince = 0;
+let detectMode  = 'ocean';
+let detectCount = 0;
+let lastAppliedKey = '';
+let seq = 0; // race guard
+
+function proposeMode(meta){
+  return (meta && meta.iso2) ? 'land' : 'ocean';
+}
+function consider(modeCandidate){
+  const now = Date.now();
+  if(modeCandidate !== detectMode){
+    detectMode = modeCandidate;
+    detectCount = 1;
+  } else {
+    detectCount++;
+  }
+  const enoughSamples = detectCount >= HYSTERESIS_SAMPLES;
+  const ageOk = (now - stableSince) >= HYSTERESIS_MAX_AGE;
+  if((modeCandidate !== stableMode) && (enoughSamples || ageOk)){
+    stableMode = modeCandidate;
+    stableSince = now;
+    return true; // changed
+  }
+  return false; // unchanged
+}
 
 /* ==================== MAIN REFRESH ==================== */
 async function refresh(){
+  const mySeq = ++seq; // capture sequence for this tick
   try{
     const iss = await fetchISS(); // {lat,lon,alt_km,speed_kps}
 
-    // Default: over ocean until RG says otherwise
-    EL.title.textContent = whichOcean(iss.lat, iss.lon); repaint(EL.title);
-    setOceanPicture();
-
-    // Slides default = Stats only
-    currentSlides = [ slideStats(iss) ];
-    startSlides('ocean');
-
-    // Upgrade with reverse geocode (land/ocean details)
+    // Kick RG but don't apply UI yet; we'll decide with hysteresis
     fetchRG(iss.lat, iss.lon).then(async (meta)=>{
-      if (meta && meta.iso2){
-        // Build "City, Country" (English-only, with fallbacks)
+      if(mySeq !== seq) return; // stale callback, ignore
+
+      const changed = consider(proposeMode(meta));
+
+      // Build a state "key" so DOM updates happen atomically and only when needed
+      let key, title;
+      if(stableMode === 'land' && meta && meta.iso2){
         const country = countryNameEN(meta.iso2, meta.country);
         const city = englishText(
           meta.city || meta.locality || meta.town || meta.village || meta.municipality || meta.name || ''
         );
         const region = englishText(meta.region || meta.admin1 || '');
-        const title =
-          city ? `${city}, ${country}` :
-          region ? `${region}, ${country}` :
-          country;
+        title = city ? `${city}, ${country}` : (region ? `${region}, ${country}` : country);
+        key = `land:${meta.iso2}:${title}`;
+      }else{
+        title = whichOcean(iss.lat, iss.lon);
+        key = `ocean:${title}`;
+      }
 
+      if (changed || key !== lastAppliedKey){
+        // Apply visuals & slides together (atomic)
         EL.title.textContent = title; repaint(EL.title);
-        setFlagFromISO(meta.iso2);
 
-        // Ensure the Country Info slide appears even if facts fail:
-        let facts = {capital:'—', density:'—', poverty:'—'};
-        try{
-          const f = await fetchFacts(meta.iso2);
-          if (f && typeof f === 'object') facts = Object.assign(facts, f);
-        }catch(_){ /* keep placeholders */ }
+        if(stableMode === 'land' && meta && meta.iso2){
+          setFlagFromISO(meta.iso2);
 
-        currentSlides = [ slideStats(iss), slideCountry(facts) ];
-        startSlides('land');
+          // Ensure Country slide is present immediately (placeholders first)
+          let facts = {capital:'—', density:'—', poverty:'—'};
+          currentSlides = [ slideStats(iss), slideCountry(facts) ];
+          startSlides();
 
-      } else {
-        // Stay ocean (English name from heuristic, fixed photo)
-        EL.title.textContent = whichOcean(iss.lat, iss.lon); repaint(EL.title);
-        setOceanPicture();
-        currentSlides = [ slideStats(iss) ];
-        startSlides('ocean');
+          // Fill facts asynchronously (ignore races)
+          fetchFacts(meta.iso2).then(f=>{
+            if(mySeq !== seq) return; // newer refresh won
+            if(f && typeof f==='object'){
+              facts = Object.assign(facts, f);
+              // Re-render only if still on land
+              if(stableMode==='land') {
+                currentSlides = [ slideStats(iss), slideCountry(facts) ];
+                startSlides();
+              }
+            }
+          }).catch(()=>{ /* keep placeholders */ });
+
+        }else{
+          // Ocean
+          setOceanPicture();
+          currentSlides = [ slideStats(iss) ];
+          startSlides();
+        }
+        lastAppliedKey = key;
+      }else{
+        // Even if state didn't change, update stats slide with latest iss numbers
+        if(currentSlides.length){
+          currentSlides[0] = slideStats(iss);
+          if(slideIdx===0){ currentSlides[0](); } // refresh visible stats
+        }
       }
     }).catch(()=>{
-      // keep ocean defaults
+      // If RG fails, keep current stable state; only refresh stats numbers
+      if(currentSlides.length){
+        currentSlides[0] = slideStats({speed_kps:NaN, alt_km:NaN});
+      }
     });
 
   }catch(_){
-    // leave previous render; clock still ticking
+    // swallow transient errors; clock still ticks
   }
 }
 
