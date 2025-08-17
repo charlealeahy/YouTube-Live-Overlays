@@ -13,10 +13,9 @@
     --ink: #e8f1f8;
     --muted:#8fa6b6;
     --accent:#4db2ff;
-    --card:#0c141a;
     --pill:#c92c2c;
-    --shadow: 0 10px 26px rgba(0,0,0,.45);
     --r:18px;
+    --shadow: 0 10px 26px rgba(0,0,0,.45);
   }
   html,body{height:100%;margin:0;background:#0b1318;color:var(--ink);font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
   *{box-sizing:border-box}
@@ -25,7 +24,6 @@
   .title{display:flex;justify-content:center;align-items:center;
     border-radius:var(--r); background:var(--panel); padding:14px 18px;
     font-weight:700; font-size:26px; letter-spacing:.3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-  /* main row uses equal heights for left + right, so the card never extends below LIVE */
   .row{margin-top:12px; display:grid; grid-template-columns:120px 1fr; gap:var(--gap); align-items:stretch;}
   .side{background:var(--panel); border-radius:var(--r); padding:14px;
         display:flex; flex-direction:column; justify-content:space-between; align-items:center}
@@ -40,7 +38,6 @@
   .progress{height:6px; width:100%; margin-top:auto; background:#0a1015; border-radius:7px; overflow:hidden}
   .bar{height:100%; width:0%; background:linear-gradient(90deg,#79c9ff,var(--accent)); transition:width .2s linear}
   .hide{display:none !important}
-  /* small screens */
   @media (max-width:640px){ :root{--w: 96vw} .title{font-size:22px} }
 </style>
 </head>
@@ -50,7 +47,7 @@
 
     <div class="row">
       <div class="side">
-        <img id="flag" class="flag" alt="Flag"/>
+        <img id="flag" class="flag" alt="Flag / Photo"/>
         <div class="live" id="livePill">LIVE</div>
       </div>
 
@@ -65,34 +62,58 @@
 <script>
 const API = "https://iss-live.charlesleahy.workers.dev";
 
+/* ----- Ocean photos (royalty-free Unsplash thumbnails) ----- */
+const OCEAN_PHOTOS = {
+  "Pacific Ocean" : "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=640&q=60",
+  "Atlantic Ocean": "https://images.unsplash.com/photo-1505761671935-60b3a7427bad?auto=format&fit=crop&w=640&q=60",
+  "Indian Ocean"  : "https://images.unsplash.com/photo-1493558103817-58b2924bce98?auto=format&fit=crop&w=640&q=60",
+  "Southern Ocean": "https://images.unsplash.com/photo-1518837695005-2083093ee35b?auto=format&fit=crop&w=640&q=60",
+  "Arctic Ocean"  : "https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=640&q=60"
+};
+
+/* ----- Quick “interesting facts” per ocean (rotated on the Now slide) ----- */
+const OCEAN_FACTS = {
+  "Pacific Ocean":[
+    "Largest ocean (~165 million km²), holds more water than all other oceans combined.",
+    "Home to the Mariana Trench, deepest point on Earth (~11,000 m).",
+    "Ringed by the volcanically active ‘Ring of Fire’.",
+    "Covers ~30% of Earth’s surface—bigger than all land combined."
+  ],
+  "Atlantic Ocean":[
+    "Second-largest ocean (~106 million km²) with the powerful Gulf Stream current.",
+    "The Mid-Atlantic Ridge splits it north-south and creates new seafloor.",
+    "Average depth ~3,646 m; once the main route of transoceanic travel."
+  ],
+  "Indian Ocean":[
+    "Warmest ocean on average; drives Asian monsoon systems.",
+    "Hosts the fast-flowing Agulhas Current off Africa’s southeast coast.",
+    "Average depth ~3,741 m; ~20% of Earth’s surface water."
+  ],
+  "Southern Ocean":[
+    "Encircles Antarctica; the Antarctic Circumpolar Current is the world’s strongest.",
+    "Key region for absorbing heat and carbon from the atmosphere.",
+    "Designated as Earth’s fifth ocean by National Geographic in 2021."
+  ],
+  "Arctic Ocean":[
+    "Smallest and shallowest ocean; much is seasonally covered by sea ice.",
+    "Average depth ~1,205 m; surrounded by North America, Europe, and Asia.",
+    "A hub for unique ecosystems like polar bears and narwhals."
+  ]
+};
+
 /* -------- helpers -------- */
 const $ = s => document.querySelector(s);
 const titleEl = $('#title'), flagEl = $('#flag'), gridEl = $('#grid'),
       cardTitle = $('#cardTitle'), barEl = $('#bar'), progEl = $('#prog');
 
 const fmtInt  = n => (n??"—").toLocaleString('en-US');
-const fmt1    = n => (n==null? "—" : (Math.round(n*10)/10).toLocaleString('en-US'));
+const fmt2    = n => (n==null? "—" : (Math.round(n*100)/100).toLocaleString('en-US'));
 const pad2    = n => String(n).padStart(2,'0');
 const utcNow  = () => { const d=new Date();
   return `${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}:${pad2(d.getUTCSeconds())}`; };
+const hemi    = (lat,lon)=>`${lat>=0?'N':'S'} • ${lon>=0?'E':'W'}`;
 
-function wavesSVG(){
-  // inline ocean icon, no borders, always available
-  return `data:image/svg+xml;utf8,
-  <svg xmlns='http://www.w3.org/2000/svg' width='92' height='64' viewBox='0 0 92 64'>
-    <defs><linearGradient id='g' x1='0' x2='0' y1='0' y2='1'>
-      <stop offset='0%' stop-color='%232f7cb6'/><stop offset='100%' stop-color='%231a4a73'/></linearGradient></defs>
-    <rect rx='10' ry='10' width='92' height='64' fill='url(%23g)'/>
-    <g fill='none' stroke='%23bfe5ff' stroke-width='5' stroke-linecap='round'>
-      <path d='M10 26c8 8 16 8 24 0s16-8 24 0 16 8 24 0'/>
-      <path d='M10 42c8 8 16 8 24 0s16-8 24 0 16 8 24 0'/>
-    </g>
-  </svg>`.replace(/\n|\s{2,}/g,' ');
-}
-
-function flagURL(iso2){
-  return `https://flagcdn.com/w80/${iso2.toLowerCase()}.png`;
-}
+function flagURL(iso2){ return `https://flagcdn.com/w80/${(iso2||'').toLowerCase()}.png`; }
 
 /* -------- rendering -------- */
 function setHeader(place){
@@ -103,19 +124,35 @@ function setHeader(place){
 }
 
 function setFlag(place){
-  if (place.ocean) { flagEl.src = wavesSVG(); flagEl.alt = "Ocean"; }
-  else if (place.iso2) { flagEl.src = flagURL(place.iso2); flagEl.alt = place.iso2; }
-  else { flagEl.src = wavesSVG(); flagEl.alt = "—"; }
+  if (place.ocean){
+    const u = OCEAN_PHOTOS[place.ocean] || OCEAN_PHOTOS["Pacific Ocean"];
+    flagEl.src = u; flagEl.alt = place.ocean + " photo";
+  }else{
+    flagEl.src = place.iso2 ? flagURL(place.iso2) : OCEAN_PHOTOS["Pacific Ocean"];
+    flagEl.alt = place.iso2 || "—";
+  }
 }
 
-/* slides: stats, country, life (life+age) */
-function renderStats(state, place){
-  cardTitle.textContent = "Now";
+/* slides: stats, country, life */
+function renderStats(state, place, facts, life){
+  cardTitle.textContent = place.ocean ? "Now" : "Now";
   gridEl.innerHTML = "";
   addRow("UTC :", utcNow() + " UTC");
   addRow("Date :", new Date().toISOString().slice(0,10));
-  addRow("Speed :", fmt1(state.speed_kps) + " km/s");
-  addRow("Elev :", fmtInt(state.alt_km) + " km");
+  addRow("Speed :", fmt2(state.speed_kps) + " km/s");
+  addRow("Elev :", fmt2(state.alt_km) + " km");
+
+  // Extra context/fact when over ocean
+  if (place.ocean){
+    // Hemisphere hint
+    addRow("Region :", hemi(state.lat, state.lon));
+    // Rotate an ocean fact
+    const list = OCEAN_FACTS[place.ocean] || [];
+    if (list.length){
+      oceanFactIdx = (oceanFactIdx+1) % list.length;
+      addRow("Fact :", list[oceanFactIdx]);
+    }
+  }
 }
 function renderCountry(state, place, facts){
   cardTitle.textContent = "Country Information";
@@ -140,16 +177,16 @@ function addRow(label, value){
 
 /* -------- slider control -------- */
 let slides=[], slideIdx=0, tick=null, progTimer=null, secondsPer=7;
+let oceanFactIdx = -1;
 
-function buildSlides(place, facts, factsLife){
-  const arr = [{name:"stats", fn:()=>renderStats(lastState, place)}];
+function buildSlides(place, facts, life){
+  const arr = [{name:"stats", fn:()=>renderStats(lastState, place, facts, life)}];
   if (!place.ocean){
     arr.push({name:"country", fn:()=>renderCountry(lastState, place, facts)});
-    arr.push({name:"life",    fn:()=>renderLife(lastState, place, factsLife)});
+    arr.push({name:"life",    fn:()=>renderLife(lastState, place, life)});
   }
   return arr;
 }
-
 function startSlider(){
   stopSlider();
   if (slides.length<=1){
@@ -161,26 +198,19 @@ function startSlider(){
   slideIdx = 0;
   nextSlide();
   tick = setInterval(nextSlide, secondsPer*1000);
-  // animate progress bar
+  // progress bar
   let t=0;
   progTimer = setInterval(()=>{
-    t = (t + 0.2); // 200ms steps
-    const frac = (t % (secondsPer*5)) / (secondsPer*5); // keep numbers modest
+    t += 0.2;
     const within = (t % secondsPer) / secondsPer;
     barEl.style.width = (within*100).toFixed(1)+"%";
   },200);
 }
-function nextSlide(){
-  slides[slideIdx].fn();
-  slideIdx = (slideIdx+1) % slides.length;
-}
-function stopSlider(){
-  clearInterval(tick); clearInterval(progTimer);
-  barEl.style.width = '0%';
-}
+function nextSlide(){ slides[slideIdx].fn(); slideIdx = (slideIdx+1) % slides.length; }
+function stopSlider(){ clearInterval(tick); clearInterval(progTimer); barEl.style.width='0%'; }
 
 /* -------- data polling -------- */
-let lastState=null, lastPlace=null, lastIso=null;
+let lastState=null, lastPlace=null, lastKey=null;
 
 async function getJSON(u, timeout=8000){
   const ctl = new AbortController(); const id=setTimeout(()=>ctl.abort(), timeout);
@@ -196,42 +226,33 @@ async function refresh(){
     const rg = await getJSON(`${API}/rg?lat=${iss.lat}&lon=${iss.lon}`);
     lastPlace = rg;
 
-    // fetch facts when on land (iso2 present)
     let facts={}, life={};
     if (rg.iso2){
       facts = await getJSON(`${API}/facts?iso2=${rg.iso2}`).catch(()=>({}));
-      // Life/Age values – if your worker adds them later, they’ll show; otherwise we keep "—"
-      life  = {
-        life:  facts.life  ?? "—",
-        male:  facts.male  ?? "—",
-        female:facts.female?? "—",
-        median:facts.median?? "—"
-      };
+      life  = { life:facts.life??"—", male:facts.male??"—", female:facts.female??"—", median:facts.median??"—" };
     }
 
     setHeader(rg);
     setFlag(rg);
 
-    // rebuild slides only if land/ocean changed or iso changed
-    const key = (rg.ocean?("ocean:"+rg.ocean):("land:"+rg.iso2||""));
-    if (key !== lastIso){
-      lastIso = key;
+    const key = rg.ocean ? ("ocean:"+rg.ocean) : ("land:"+ (rg.iso2||""));
+    if (key !== lastKey){
+      lastKey = key;
+      oceanFactIdx = -1; // restart facts per new ocean
       slides = buildSlides(rg, facts, life);
       startSlider();
     } else {
-      // still update current slide (UTC ticks, alt/speed drift)
+      // update current slide (clock/speed drift)
       slides[ (slideIdx+slides.length-1)%slides.length ].fn();
     }
-
   }catch(e){
     titleEl.textContent = "Network error – retrying…";
   }
 }
 
-/* update UTC clock in-place without rebuilding grid */
+/* live UTC tick */
 setInterval(()=>{
   if (!gridEl.children.length) return;
-  // find the first label cell that equals "UTC :" and update its value cell
   for (let i=0;i<gridEl.children.length;i+=2){
     if (gridEl.children[i].textContent.startsWith("UTC")){
       gridEl.children[i+1].textContent = utcNow()+" UTC";
@@ -240,9 +261,9 @@ setInterval(()=>{
   }
 },1000);
 
-/* poll fresh data frequently so location updates without reload */
+/* poll so the location updates without reloading */
 refresh();
-setInterval(refresh, 10000); // every 10s
+setInterval(refresh, 10000); // 10s
 </script>
 </body>
 </html>
