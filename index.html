@@ -6,7 +6,7 @@
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>ISS Overlay (vMix ocean fix)</title>
+<title>ISS Overlay (with Country Slide)</title>
 <style>
   :root{
     --bg:#0b161f; --panel:#101b26; --panel2:#0e1923; --text:#e9f2f9; --muted:#9db3c5;
@@ -34,7 +34,7 @@
   .panel{flex:1;min-height:120px;background:rgba(255,255,255,.02);
     border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:18px 20px;}
   .stat{display:flex;align-items:baseline;gap:10px;padding:6px 0}
-  .label{min-width:86px;color:var(--muted);font-weight:700}
+  .label{min-width:100px;color:var(--muted);font-weight:700}
   .value{font-weight:800}
   .unit{color:var(--muted);font-weight:700;margin-left:4px}
   @media (max-width:760px){:root{--card-w:92vw}.title{font-size:28px}.media{width:108px}.flag{width:88px;height:66px}}
@@ -49,29 +49,27 @@
         <div class="live">LIVE</div>
       </div>
       <div class="panel">
+        <!-- Backup location line (helps vMix even if top title glitches) -->
         <div class="stat"><div class="label">Location :</div><div class="value" id="locLine">—</div></div>
-        <div class="stat"><div class="label">UTC :</div>     <div class="value" id="utc">—</div></div>
-        <div class="stat"><div class="label">Date :</div>    <div class="value" id="date">—</div></div>
-        <div class="stat"><div class="label">Speed :</div>   <div class="value"><span id="speed">—</span><span class="unit">km/s</span></div></div>
-        <div class="stat"><div class="label">Elev :</div>    <div class="value"><span id="elev">—</span><span class="unit">km</span></div></div>
+
+        <!-- Slide content swaps in here (Stats <-> Country) -->
+        <div id="slide"></div>
       </div>
     </div>
   </div>
 
 <script>
 /* ================= SETTINGS ================= */
-const API_BASE   = 'https://iss-live.charlesleahy.workers.dev'; // ← change if yours differs
-const REFRESH_MS = 6000;
+const API_BASE   = 'https://iss-live.charlesleahy.workers.dev'; // change if yours differs
+const REFRESH_MS = 6000;   // data refresh cadence
+const SLIDE_MS   = 7000;   // slide rotation cadence
 
 /* ================= Elements ================= */
 const EL = {
   title:  document.getElementById('title'),
   loc:    document.getElementById('locLine'),
   flag:   document.getElementById('flag'),
-  utc:    document.getElementById('utc'),
-  date:   document.getElementById('date'),
-  speed:  document.getElementById('speed'),
-  elev:   document.getElementById('elev'),
+  slide:  document.getElementById('slide'),
 };
 
 /* ================= Utils ================= */
@@ -101,59 +99,32 @@ function getJSON(url, timeout=8000){
 }
 async function fetchISS(){ return await getJSON(`${API_BASE}/iss`); }
 async function reverseGeocode(lat,lon){ return await getJSON(`${API_BASE}/rg?lat=${lat}&lon=${lon}`); }
+async function fetchFacts(iso2){ return await getJSON(`${API_BASE}/facts?iso2=${iso2}`); }
 
-/* ================= Ocean detection (local heuristic) =================
-   Simple but effective regions to cover the five main basins.
-   This guarantees we always name an ocean even if reverse geocoder returns null. */
+/* ================= Ocean detection (local heuristic) ================= */
 function whichOcean(lat, lon){
-  // Normalize lon to [-180,180]
   lon = ((lon + 180) % 360 + 360) % 360 - 180;
-
   if (lat >= 66) return 'Arctic Ocean';
   if (lat <= -50) return 'Southern Ocean';
-
-  // Indian Ocean: 20E..147E and roughly -60..30 lat
   if (lon >= 20 && lon <= 147 && lat >= -60 && lat <= 30) return 'Indian Ocean';
-
-  // Atlantic Ocean: -100..20 lon and -60..66 lat
   if (lon >= -100 && lon <= 20 && lat >= -60 && lat <= 66) return 'Atlantic Ocean';
-
-  // Everything else → Pacific
   return 'Pacific Ocean';
 }
 
 /* ================= Ocean photos (curated IDs) ================= */
 const OCEAN_PHOTOS = {
-  'Pacific Ocean': [
-    // open-ocean, Pacific vibes
-    'photo-1501630834273-4b5604d2ee31',
-    'photo-1505761671935-60b3a7427bad',
-    'photo-1507525428034-b723cf961d3e'
-  ],
-  'Atlantic Ocean': [
-    'photo-1527481138388-0d334d4f04e6',
-    'photo-1500375592092-40eb2168fd21',
-    'photo-1502082553048-f009c37129b9'
-  ],
-  'Indian Ocean': [
-    'photo-1500375592092-40eb2168fd21',
-    'photo-1526483941652-3ea37d90c283',
-    'photo-1524499982525-1ffd58dd89ea'
-  ],
-  'Southern Ocean': [
-    'photo-1519681393784-d120267933ba',
-    'photo-1511497584788-876760111969',
-    'photo-1542652735873-9826d8d2f4b0'
-  ],
-  'Arctic Ocean': [
-    'photo-1501785888041-af3ef285b470',
-    'photo-1519681393784-d120267933ba',
-    'photo-1508261303786-0e1a3f1b9a3d'
-  ]
+  'Pacific Ocean': ['photo-1501630834273-4b5604d2ee31','photo-1505761671935-60b3a7427bad','photo-1507525428034-b723cf961d3e'],
+  'Atlantic Ocean': ['photo-1527481138388-0d334d4f04e6','photo-1500375592092-40eb2168fd21','photo-1502082553048-f009c37129b9'],
+  'Indian Ocean':   ['photo-1524499982525-1ffd58dd89ea','photo-1526483941652-3ea37d90c283','photo-1500375592092-40eb2168fd21'],
+  'Southern Ocean': ['photo-1511497584788-876760111969','photo-1542652735873-9826d8d2f4b0','photo-1519681393784-d120267933ba'],
+  'Arctic Ocean':   ['photo-1501785888041-af3ef285b470','photo-1519681393784-d120267933ba','photo-1508261303786-0e1a3f1b9a3d']
 };
-// Generate a 192x144 image url from Unsplash ID
 function unsplash(id){ return `https://images.unsplash.com/${id}?auto=format&fit=crop&w=192&h=144&q=70`; }
-
+function pickOceanPhoto(name){
+  const list = OCEAN_PHOTOS[name]; if(!list||!list.length) return null;
+  const id = list[(Math.random()*list.length)|0];
+  return unsplash(id);
+}
 const FALLBACK_SVG = 'data:image/svg+xml;utf8,'+encodeURIComponent(
  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 72">
    <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
@@ -164,75 +135,125 @@ const FALLBACK_SVG = 'data:image/svg+xml;utf8,'+encodeURIComponent(
    </g>
  </svg>`);
 
-function pickOceanPhoto(name){
-  const list = OCEAN_PHOTOS[name];
-  if(!list || !list.length) return FALLBACK_SVG;
-  const id = list[(Math.random()*list.length)|0];
-  return unsplash(id);
-}
-
-function setOceanVisual(oceanName){
-  EL.flag.src = pickOceanPhoto(oceanName);
-  EL.flag.alt = oceanName;
-}
-
+/* ================= Visuals ================= */
 function setFlagFromISO(iso2, country){
-  if(!iso2){ EL.flag.src = FALLBACK_SVG; EL.flag.alt=''; return; }
   EL.flag.src = `https://flagcdn.com/w160/${iso2.toLowerCase()}.png`;
   EL.flag.alt = `${country||'Flag'}`;
 }
-
-/* ================= Title helpers ================= */
-function repaint(el){ el.style.display='none'; void el.offsetHeight; el.style.display='block'; }
-function buildTitle(meta, lat, lon){
-  // Prefer ocean (from meta or heuristic), else "Region, Country", else Country
-  let ocean = (meta && meta.ocean) ? String(meta.ocean) : whichOcean(lat, lon);
-  // If meta has a country (land), prefer that instead of ocean
-  if (meta && meta.country) {
-    if (meta.region && meta.country) return `${meta.region}, ${meta.country}`;
-    return meta.country;
-  }
-  return ocean;
+function setOceanVisual(name){
+  const u = pickOceanPhoto(name);
+  if (u){ EL.flag.src = u; EL.flag.alt = name; }
+  else { EL.flag.src = FALLBACK_SVG; EL.flag.alt = name; }
 }
 
-/* ================= Live clock ================= */
+/* ================= Slides (no progress bar) ================= */
+let slides = [];      // array of render functions
+let slideIdx = 0;
+let slideTimer = null;
+
+function clearSlideTimer(){ if(slideTimer){ clearInterval(slideTimer); slideTimer = null; } }
+function startSlides(){
+  clearSlideTimer();
+  if(!slides.length){ EL.slide.innerHTML=''; return; }
+  renderSlide(0);
+  if(slides.length > 1){
+    slideTimer = setInterval(()=> renderSlide((slideIdx+1)%slides.length), SLIDE_MS);
+  }
+}
+function renderSlide(ix){
+  slideIdx = ix;
+  EL.slide.innerHTML = ''; // wipe
+  slides[ix](EL.slide);    // render
+}
+
+/* builders */
+function row(label, value){
+  const wrap = document.createElement('div'); wrap.className='stat';
+  const k = document.createElement('div'); k.className='label'; k.textContent = label + ' :';
+  const v = document.createElement('div'); v.className='value'; v.textContent = value ?? '—';
+  wrap.appendChild(k); wrap.appendChild(v);
+  return wrap;
+}
+function statsSlide(data){
+  return (mount)=>{
+    mount.appendChild(row('UTC',  nowUTC()));
+    mount.appendChild(row('Date', todayUTC()));
+    mount.appendChild(row('Speed', fmt(data.speed_kps,2) + ' km/s'));
+    mount.appendChild(row('Elev',  fmt(data.alt_km,0) + ' km'));
+  };
+}
+function countrySlide(facts){
+  return (mount)=>{
+    mount.appendChild(row('Capital', facts.capital ?? '—'));
+    mount.appendChild(row('Density', facts.density ?? '—'));
+    mount.appendChild(row('Poverty', facts.poverty ?? '—'));
+  };
+}
+
+/* live clock updates UTC inside stats slide every second */
 function startClock(){
   function tick(){
-    EL.utc.textContent = nowUTC();
+    // if current slide is stats, update its UTC row
+    const labs = EL.slide.querySelectorAll('.label');
+    for(let i=0;i<labs.length;i++){
+      if(labs[i].textContent.trim().startsWith('UTC')){
+        const v = labs[i].nextElementSibling;
+        if(v) v.textContent = nowUTC();
+        break;
+      }
+    }
     setTimeout(tick, 1000 - (Date.now()%1000));
   }
   tick();
 }
 
+/* repaint helper for title (some CEF first-line glitches) */
+function repaint(el){ el.style.display='none'; void el.offsetHeight; el.style.display='block'; }
+
 /* ================= Main refresh ================= */
+let lastKey = ''; // ocean/iso switch detection
+
 async function refresh(){
   try{
-    const iss = await fetchISS(); // {lat, lon, alt_km, speed_kps}
-    // Always show basics fast
-    EL.date.textContent  = todayUTC();
-    EL.speed.textContent = fmt(iss.speed_kps,2);
-    EL.elev.textContent  = fmt(iss.alt_km,0);
+    const iss = await fetchISS(); // {lat,lon,alt_km,speed_kps}
 
-    // Default to ocean name via heuristic until RG returns
-    let oceanGuess = whichOcean(iss.lat, iss.lon);
+    // Default: immediate ocean guess while RG is pending
+    const oceanGuess = whichOcean(iss.lat, iss.lon);
     EL.title.textContent = oceanGuess;
     EL.loc.textContent   = oceanGuess;
     setOceanVisual(oceanGuess);
     repaint(EL.title);
 
-    // Upgrade with reverse geocode (if land: show flag; if ocean: keep ocean + photo)
-    reverseGeocode(iss.lat, iss.lon).then(meta=>{
-      const title = buildTitle(meta, iss.lat, iss.lon);
+    // Build slides for ocean (stats only for ocean initially)
+    slides = [ statsSlide(iss) ];
+    startSlides();
+
+    // Try to upgrade with reverse geocode + facts
+    reverseGeocode(iss.lat, iss.lon).then(async (meta)=>{
+      const title = meta && meta.country
+        ? (meta.region ? `${meta.region}, ${meta.country}` : meta.country)
+        : (meta && meta.ocean) ? meta.ocean : whichOcean(iss.lat, iss.lon);
+
       EL.title.textContent = title;
       EL.loc.textContent   = title;
       repaint(EL.title);
 
-      if (meta && meta.country) setFlagFromISO(meta.iso2, meta.country);
-      else setOceanVisual(whichOcean(iss.lat, iss.lon)); // ensure matching photo
-    }).catch(()=>{ /* keep heuristic & photo */ });
+      if (meta && meta.iso2){
+        setFlagFromISO(meta.iso2, meta.country || '');
+        // Pull facts and rebuild slides (Stats + Country)
+        let facts = {};
+        try{ facts = await fetchFacts(meta.iso2); }catch(_){}
+        slides = [ statsSlide(iss), countrySlide(facts||{}) ];
+      }else{
+        // ocean case: keep matching ocean photo
+        setOceanVisual(whichOcean(iss.lat, iss.lon));
+        slides = [ statsSlide(iss) ];
+      }
+      startSlides(); // restart rotation with the new set
+    }).catch(()=>{/* keep oceanGuess visuals & stats-only slide */});
 
   }catch(e){
-    // keep prior values on transient failures
+    // ignore transient errors; slides keep last state
   }
 }
 
