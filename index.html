@@ -1,177 +1,121 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
+<meta charset="utf-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>ISS Overlay</title>
+<title>ISS Overlay (vMix safe)</title>
 <style>
   :root{
     --bg:#0b161f;
     --panel:#101b26;
-    --panel-2:#0e1923;
+    --panel2:#0e1923;
     --text:#e9f2f9;
     --muted:#9db3c5;
-    --accent:#6ec1ff;
-    --card-w:680px;
-    --radius:16px;
-    --shadow: 0 24px 36px rgba(0,0,0,.35);
+    --card-w:720px;
+    --r:16px;
+    --shadow:0 24px 36px rgba(0,0,0,.35);
   }
-  *{ box-sizing:border-box; }
-  html,body{ height:100%; }
+  *{box-sizing:border-box}
+  html,body{height:100%}
   body{
-    margin:0;
-    background:var(--bg);
-    color:var(--text);
-    font:600 16px/1.35 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, Apple Color Emoji, Segoe UI Emoji;
-    -webkit-font-smoothing:antialiased;
-    -moz-osx-font-smoothing:grayscale;
-    overflow:hidden; /* play nice as an overlay */
+    margin:0;background:var(--bg);color:var(--text);
+    font:600 16px/1.35 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
+    -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
+    overflow:hidden; /* overlay-friendly */
   }
   .card{
-    width:var(--card-w);
-    margin:24px;
-    padding:22px 22px 26px;
-    background:linear-gradient(180deg, var(--panel) 0%, var(--panel-2) 100%);
-    border-radius:calc(var(--radius) + 4px);
-    box-shadow:var(--shadow);
-    pointer-events:none; /* don’t capture clicks in vMix */
+    width:var(--card-w);margin:24px;padding:22px 22px 26px;
+    background:linear-gradient(180deg,var(--panel) 0%,var(--panel2) 100%);
+    border-radius:calc(var(--r) + 4px);box-shadow:var(--shadow);pointer-events:none;
   }
-
   .title{
-    width:100%;
-    text-align:center;
-    font-size:34px;
-    font-weight:800;
-    letter-spacing:.2px;
-    margin-bottom:16px;
-    color:#ffffff;
+    position:relative;z-index:5;display:block;text-align:center;
+    font-size:34px;font-weight:800;letter-spacing:.2px;margin:2px 0 16px;
+    color:#fff; text-rendering:optimizeLegibility; transform:translateZ(0);
+    /* tiny shadow nudges CEF to paint the first line */
+    text-shadow:rgba(0,0,0,.01) 0 0 1px;
   }
-
-  .row{
-    display:flex;
-    align-items:center; /* keep things neat next to the flag/live column */
-    gap:18px;
-  }
-
-  .media{
-    width:120px;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-  }
-  .flag{
-    width:96px; height:72px;
-    object-fit:cover;
-    border-radius:12px; /* no border, soft corners */
-    display:block;
-    background:#0a141c;
-  }
-  .live{
-    margin-top:12px;
-    padding:8px 18px;
-    border-radius:12px;
-    background:#e53935;
-    color:#fff;
-    font-weight:800;
-    letter-spacing:.6px;
-    line-height:1;
-  }
-
+  .row{display:flex;align-items:center;gap:18px}
+  .media{width:120px;display:flex;flex-direction:column;align-items:center}
+  .flag{width:96px;height:72px;object-fit:cover;border-radius:12px;background:#0a141c}
+  .live{margin-top:12px;padding:8px 18px;border-radius:12px;background:#e53935;color:#fff;font-weight:800;letter-spacing:.6px}
   .panel{
-    flex:1;
-    min-height:120px; /* keeps text block no lower than the live pill’s bottom */
-    background:rgba(255,255,255,.02);
-    border:1px solid rgba(255,255,255,.06);
-    border-radius:14px;
-    padding:18px 20px;
+    flex:1;min-height:120px;background:rgba(255,255,255,.02);
+    border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:18px 20px;
   }
-  .stat{
-    display:flex;
-    align-items:baseline;
-    gap:10px;
-    padding:6px 0;
-  }
-  .label{
-    min-width:64px;
-    color:var(--muted);
-    font-weight:700;
-  }
-  .value{
-    font-weight:800;
-    color:var(--text);
-  }
-  .unit{
-    color:var(--muted);
-    font-weight:700;
-    margin-left:4px;
-  }
-
-  /* small screens (just in case) */
-  @media (max-width:720px){
-    :root{ --card-w:92vw; }
-    .title{ font-size:28px; }
-    .media{ width:108px; }
-    .flag{ width:88px; height:66px; }
-  }
+  .stat{display:flex;align-items:baseline;gap:10px;padding:6px 0}
+  .label{min-width:86px;color:var(--muted);font-weight:700}
+  .value{font-weight:800}
+  .unit{color:var(--muted);font-weight:700;margin-left:4px}
+  @media (max-width:760px){:root{--card-w:92vw}.title{font-size:28px}.media{width:108px}.flag{width:88px;height:66px}}
 </style>
 </head>
 <body>
   <div class="card">
-    <div class="title" id="title">—</div>
+    <div id="title" class="title">Loading…</div>
 
     <div class="row">
       <div class="media">
         <img id="flag" class="flag" alt="" src="">
         <div class="live">LIVE</div>
       </div>
-
       <div class="panel">
-        <div class="stat"><div class="label">UTC :</div>   <div class="value" id="utc">—</div></div>
-        <div class="stat"><div class="label">Date :</div>  <div class="value" id="date">—</div></div>
-        <div class="stat"><div class="label">Speed :</div> <div class="value"><span id="speed">—</span><span class="unit">km/s</span></div></div>
-        <div class="stat"><div class="label">Elev :</div>  <div class="value"><span id="elev">—</span><span class="unit">km</span></div></div>
+        <div class="stat"><div class="label">Location :</div><div class="value" id="locLine">—</div></div>
+        <div class="stat"><div class="label">UTC :</div>     <div class="value" id="utc">—</div></div>
+        <div class="stat"><div class="label">Date :</div>    <div class="value" id="date">—</div></div>
+        <div class="stat"><div class="label">Speed :</div>   <div class="value"><span id="speed">—</span><span class="unit">km/s</span></div></div>
+        <div class="stat"><div class="label">Elev :</div>    <div class="value"><span id="elev">—</span><span class="unit">km</span></div></div>
       </div>
     </div>
   </div>
 
 <script>
-/* --------- SETTINGS --------- */
+/* ================= SETTINGS ================= */
 const API_BASE   = 'https://iss-live.charlesleahy.workers.dev';
-const REFRESH_MS = 6000; // fetch ISS/region every 6s; clock ticks every 1s
+const REFRESH_MS = 6000;
 
-/* --------- ELEMENTS --------- */
-const els = {
-  title: document.getElementById('title'),
-  flag:  document.getElementById('flag'),
-  utc:   document.getElementById('utc'),
-  date:  document.getElementById('date'),
-  speed: document.getElementById('speed'),
-  elev:  document.getElementById('elev'),
+/* ================= Elements ================= */
+const EL = {
+  title:  document.getElementById('title'),
+  loc:    document.getElementById('locLine'),
+  flag:   document.getElementById('flag'),
+  utc:    document.getElementById('utc'),
+  date:   document.getElementById('date'),
+  speed:  document.getElementById('speed'),
+  elev:   document.getElementById('elev'),
 };
 
-/* --------- HELPERS --------- */
-function fmt(n, d=2){
-  return (n==null || !isFinite(n)) ? '—' : Number(n).toFixed(d).replace(/\.00$/,'');
-}
-function nowUTC(){ const d=new Date(); return d.toISOString().slice(11,19) + ' UTC'; }
+/* ================= Utils ================= */
+function fmt(n, d=2){ return (n==null||!isFinite(n)) ? '—' : Number(n).toFixed(d).replace(/\.00$/,''); }
+function nowUTC(){ const d=new Date(); return d.toISOString().slice(11,19)+' UTC'; }
 function todayUTC(){ return new Date().toISOString().slice(0,10); }
 
-async function getJSON(url, timeout=7000){
-  const ctrl = new AbortController();
-  const id = setTimeout(()=>ctrl.abort(), timeout);
-  try{
-    // vMix-friendly: no custom UA header; avoid cache
-    const r = await fetch(url, { signal: ctrl.signal, cache: 'no-store', mode:'cors' });
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    return await r.json();
-  }finally{ clearTimeout(id); }
+/* vMix-safe JSON fetch (XHR fallback, no AbortController needed) */
+function getJSON(url, timeout=8000){
+  return new Promise((resolve, reject)=>{
+    try{
+      const xhr = new XMLHttpRequest();
+      xhr.open('GET', url, true);
+      xhr.responseType = 'json';
+      xhr.timeout = timeout;
+      xhr.onload = ()=> {
+        if(xhr.status>=200 && xhr.status<300){
+          resolve(xhr.response ?? JSON.parse(xhr.responseText));
+        }else reject(new Error('HTTP '+xhr.status));
+      };
+      xhr.onerror = ()=>reject(new Error('Network error'));
+      xhr.ontimeout = ()=>reject(new Error('Timeout'));
+      xhr.setRequestHeader('Cache-Control','no-cache');
+      xhr.send();
+    }catch(e){ reject(e); }
+  });
 }
 
 async function fetchISS(){ return await getJSON(`${API_BASE}/iss`); }
-async function reverseGeocode(lat, lon){ return await getJSON(`${API_BASE}/rg?lat=${lat}&lon=${lon}`); }
+async function reverseGeocode(lat,lon){ return await getJSON(`${API_BASE}/rg?lat=${lat}&lon=${lon}`); }
 
 function buildTitle(meta){
   if(!meta) return '—';
@@ -181,99 +125,97 @@ function buildTitle(meta){
   return '—';
 }
 
-/* --------- Ocean photo fallback --------- */
+/* ===== Ocean photos (random) with inline fallback ===== */
 const FALLBACK_SVG = 'data:image/svg+xml;utf8,'+encodeURIComponent(
-  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 72">
-     <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
-       <stop offset="0" stop-color="#183241"/><stop offset="1" stop-color="#0f2230"/>
-     </linearGradient></defs>
-     <rect width="96" height="72" rx="10" fill="url(#g)"/>
-     <g fill="#87d2ff" opacity=".9">
-       <path d="M10 42c6 0 6-4 12-4s6 4 12 4 6-4 12-4 6 4 12 4 6-4 12-4 6 4 12 4v6c-6 0-6-4-12-4s-6 4-12 4-6-4-12-4-6 4-12 4-6-4-12-4-6 4-12 4v-6z"/>
-     </g>
-   </svg>`
+ `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 72">
+   <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+     <stop offset="0" stop-color="#183241"/><stop offset="1" stop-color="#0f2230"/></linearGradient></defs>
+   <rect width="96" height="72" rx="10" fill="url(#g)"/>
+   <g fill="#87d2ff" opacity=".9">
+     <path d="M10 42c6 0 6-4 12-4s6 4 12 4 6-4 12-4 6 4 12 4 6-4 12-4 6 4 12 4v6c-6 0-6-4-12-4s-6 4-12 4-6-4-12-4-6 4-12 4-6-4-12-4-6 4-12 4v-6z"/>
+   </g>
+ </svg>`
 );
-const rand = ()=> (Math.random()*1e9|0);
-function candidateOceanPhotos(){
+const rnd = ()=> (Math.random()*1e9|0);
+function oceanCandidates(){
   return [
-    `https://source.unsplash.com/192x144/?ocean,sea,water&sig=${rand()}`,
-    `https://source.unsplash.com/random/192x144?ocean&sig=${rand()}`,
-    `https://picsum.photos/192/144?random=${rand()}`,
+    `https://source.unsplash.com/192x144/?ocean,sea&sig=${rnd()}`,
+    `https://picsum.photos/192/144?random=${rnd()}`,
     `https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=192&h=144&q=70`
   ];
 }
-function loadImage(url){
-  return new Promise((res, rej)=>{
-    const i = new Image();
-    i.onload = ()=>res(url);
-    i.onerror = ()=>rej(url);
-    i.src = url;
-  });
-}
-async function setRandomOceanPhoto(){
-  for(const u of candidateOceanPhotos()){
-    try{ els.flag.src = await loadImage(u); els.flag.alt='Ocean'; return; }
-    catch(_){ /* try next */ }
+function loadImage(u){ return new Promise((res,rej)=>{ const i=new Image(); i.onload=()=>res(u); i.onerror=()=>rej(u); i.src=u; }); }
+async function setOceanPhoto(){
+  for(const u of oceanCandidates()){
+    try{ EL.flag.src = await loadImage(u); EL.flag.alt='Ocean'; return; }
+    catch(_){}
   }
-  els.flag.src = FALLBACK_SVG; els.flag.alt='Ocean';
+  EL.flag.src = FALLBACK_SVG; EL.flag.alt='Ocean';
 }
-async function setFlagOrPhoto(meta){
-  if(meta && meta.iso2){ // country
-    els.flag.src = `https://flagcdn.com/w160/${meta.iso2.toLowerCase()}.png`;
-    els.flag.alt = `${meta.country} flag`;
-  }else{ // ocean
-    await setRandomOceanPhoto();
-  }
+function setFlagFromISO(iso2, country){
+  EL.flag.src = `https://flagcdn.com/w160/${iso2.toLowerCase()}.png`;
+  EL.flag.alt = `${country||'Flag'}`;
 }
 
-/* --------- 1s clock --------- */
+/* ===== 1s clock ===== */
 function startClock(){
   function tick(){
-    els.utc.textContent = nowUTC();
+    EL.utc.textContent = nowUTC();
     setTimeout(tick, 1000 - (Date.now()%1000));
   }
   tick();
 }
 
-/* --------- Main updater --------- */
-async function updateOnce(){
+/* ===== Force repaint hack (CEF sometimes doesn’t draw first line) ===== */
+function repaint(el){
+  el.style.display='none'; // force layout
+  void el.offsetHeight;
+  el.style.display='block';
+}
+
+/* ===== Main refresh ===== */
+async function refresh(){
   try{
     const iss = await fetchISS();
 
-    // Always show a safe fallback title immediately (works even if RG fails in vMix)
-    const fallback = `Lat ${fmt(iss.lat,2)}°, Lon ${fmt(iss.lon,2)}°`;
-    els.title.textContent = fallback;
+    // Always show something
+    EL.title.textContent = `Lat ${fmt(iss.lat,2)}°, Lon ${fmt(iss.lon,2)}°`;
+    EL.loc.textContent   = EL.title.textContent;
+    repaint(EL.title);
 
-    // Async reverse-geocode; upgrade title + set flag/photo when it returns
+    // Upgrade with region/country + flag/photo
     reverseGeocode(iss.lat, iss.lon)
       .then(meta=>{
         const t = buildTitle(meta);
-        if(t && t !== '—') els.title.textContent = t;
-        setFlagOrPhoto(meta);
+        if(t && t!=='—'){
+          EL.title.textContent = t;
+          EL.loc.textContent   = t;
+          repaint(EL.title);
+        }
+        if(meta && meta.iso2){ setFlagFromISO(meta.iso2, meta.country); }
+        else { setOceanPhoto(); }
       })
-      .catch(()=> setRandomOceanPhoto());
+      .catch(()=> setOceanPhoto());
 
-    // Stats (clock is handled separately)
-    els.date.textContent  = todayUTC();
-    els.speed.textContent = fmt(iss.speed_kps,2);
-    els.elev.textContent  = fmt(iss.alt_km,0);
-  }catch(_){
-    // keep previous values if something hiccups
+    EL.date.textContent  = todayUTC();
+    EL.speed.textContent = fmt(iss.speed_kps,2);
+    EL.elev.textContent  = fmt(iss.alt_km,0);
+  }catch(e){
+    // keep prior values; if first run, show basic placeholders
   }
 }
 
-function start(){
-  startClock();
-  updateOnce();
-  setInterval(updateOnce, REFRESH_MS);
-}
-start();
+/* ===== Start ===== */
+startClock();
+refresh();
+setInterval(refresh, REFRESH_MS);
 
-/* --------- Ensure title is visible on older vMix CEF builds --------- */
-document.addEventListener('DOMContentLoaded', ()=>{
-  const t = document.getElementById('title');
-  if(t){ t.style.position='relative'; t.style.zIndex='5'; t.style.color='#fff'; }
-});
+/* Title fallback if APIs are blocked: allow ?title=Something */
+(function(){
+  const qs = new URLSearchParams(location.search);
+  const t = qs.get('title');
+  if(t){ EL.title.textContent=t; EL.loc.textContent=t; repaint(EL.title); }
+})();
 </script>
 </body>
 </html>
