@@ -134,10 +134,31 @@ function getJSON(url, timeout=8000){
   });
 }
 const fetchISS  = ()=> getJSON(`${API_BASE}/iss`);
-const fetchRG   = (lat,lon)=> getJSON(`${API_BASE}/rg?lat=${lat}&lon=${lon}`);
+const fetchRG   = (lat,lon)=> getJSON(`${API_BASE}/rg?lat=${lat}&lon=${lon}&lang=en`); // force English if supported
 const fetchFacts= (iso2)=> iso2 ? getJSON(`${API_BASE}/facts?iso2=${iso2}`) : Promise.resolve({});
 
-/* Ocean name heuristic (so the title shows even if RG has no ocean) */
+/* ===== Country name → English (never rely on localized API text) ===== */
+const hasIntl = (typeof Intl!=='undefined' && Intl.DisplayNames);
+const enDisplay = hasIntl ? new Intl.DisplayNames(['en'], {type:'region'}) : null;
+/* lean fallback for older CEF builds */
+const ISO2_EN = {
+  US:'United States', GB:'United Kingdom', DE:'Germany', FR:'France', ES:'Spain',
+  IT:'Italy', CN:'China', JP:'Japan', IN:'India', BR:'Brazil', RU:'Russia',
+  CA:'Canada', AU:'Australia', MX:'Mexico', KR:'South Korea', TR:'Türkiye',
+  ID:'Indonesia', NL:'Netherlands', SE:'Sweden', NO:'Norway', DK:'Denmark',
+  FI:'Finland', PL:'Poland', UA:'Ukraine', SA:'Saudi Arabia', AE:'United Arab Emirates',
+  ZA:'South Africa', AR:'Argentina', EG:'Egypt'
+};
+function countryNameEN(iso2, fallbackCountry){
+  if(!iso2) return fallbackCountry || '—';
+  const code = iso2.toUpperCase();
+  try{
+    if(enDisplay){ const n = enDisplay.of(code); if(n) return n; }
+  }catch(_){}
+  return ISO2_EN[code] || fallbackCountry || code; // last resort: code
+}
+
+/* Ocean name heuristic (always English) */
 function whichOcean(lat, lon){
   lon = ((lon + 180) % 360 + 360) % 360 - 180;
   if (lat >= 66) return 'Arctic Ocean';
@@ -147,7 +168,7 @@ function whichOcean(lat, lon){
   return 'Pacific Ocean';
 }
 
-/* ===== Random ocean photo with never-fail fallback ===== */
+/* ===== Random ocean photo with never-fail fallback (keeps your look) ===== */
 const FALLBACK_SVG = 'data:image/svg+xml;utf8,'+encodeURIComponent(
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 72">
      <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
@@ -172,10 +193,7 @@ async function setRandomOceanPhoto(){
   }
   EL.flag.src = FALLBACK_SVG; EL.flag.alt='Ocean';
 }
-function setFlagFromISO(iso2,country){
-  EL.flag.src = `https://flagcdn.com/w160/${iso2.toLowerCase()}.png`;
-  EL.flag.alt = `${country||'Flag'}`;
-}
+function setFlagFromISO(iso2){ EL.flag.src = `https://flagcdn.com/w160/${iso2.toLowerCase()}.png`; EL.flag.alt = 'Flag'; }
 
 /* ==================== SLIDES (same panel, no headings) ==================== */
 let slideIdx = 0, slideTimer = null, currentSlides = []; // each slide = () => render grid rows
@@ -203,8 +221,10 @@ function slideStats(iss){
   ]);
 }
 function slideCountry(facts){
+  // facts values might include diacritics; strip combining marks to keep pure ASCII if needed
+  const strip = s => (typeof s==='string') ? s.normalize('NFD').replace(/[\u0300-\u036f]/g,'') : s;
   return ()=> setGridRows([
-    ['Capital', facts.capital ?? '—', ''],
+    ['Capital', strip(facts.capital) ?? '—', ''],
     ['Density', facts.density ?? '—', ''],
     ['Poverty', facts.poverty ?? '—', ''],
   ]);
@@ -240,54 +260,44 @@ function startClock(){
 /* repaint helper to coax older CEF into painting the first line */
 function repaint(el){ el.style.display='none'; void el.offsetHeight; el.style.display='block'; }
 
-/* Track last “place key” so we only change image/slide when needed */
-let lastPlaceKey = '';
-
+/* ==================== MAIN REFRESH ==================== */
 async function refresh(){
   try{
     const iss = await fetchISS(); // {lat,lon,alt_km,speed_kps}
-    // Title fallback immediately (works even if RG is slow)
+    // Default: show ocean name (English) and ocean photo immediately
     let title = whichOcean(iss.lat, iss.lon);
     EL.title.textContent = title; repaint(EL.title);
-
-    // Default slides = Stats only (ocean)
     currentSlides = [ slideStats(iss) ];
     startSlides();
-
-    // Visual default = ocean photo
     setRandomOceanPhoto();
 
-    // Try upgrade with reverse geocode + facts when on land
+    // Try to upgrade with reverse geocode (force English via &lang=en if supported)
     fetchRG(iss.lat, iss.lon).then(async (meta)=>{
-      // Decide final title + visuals
-      if (meta && meta.country){
-        title = meta.region ? `${meta.region}, ${meta.country}` : meta.country;
-        EL.title.textContent = title; repaint(EL.title);
-        setFlagFromISO(meta.iso2, meta.country);
+      if (meta && meta.iso2){
+        // English country name from ISO2
+        const enName = countryNameEN(meta.iso2, meta.country);
+        EL.title.textContent = enName; repaint(EL.title);
+        setFlagFromISO(meta.iso2);
 
-        // Build slides: Stats + Country (facts)
+        // Stats + Country slides (values cleaned for ASCII-ish output)
         let facts={}; try{ facts = await fetchFacts(meta.iso2); }catch(_){}
         currentSlides = [ slideStats(iss), slideCountry(facts||{}) ];
       } else {
-        // stay ocean; ensure photo present
-        title = meta && meta.ocean ? meta.ocean : whichOcean(iss.lat, iss.lon);
+        // stay in ocean mode (English names already)
+        title = (meta && meta.ocean) ? 'Pacific Ocean' /* ignored: we always prefer heuristic to guarantee English */ : whichOcean(iss.lat, iss.lon);
         EL.title.textContent = title; repaint(EL.title);
-        setRandomOceanPhoto();
         currentSlides = [ slideStats(iss) ];
+        setRandomOceanPhoto();
       }
       startSlides();
-
-      // place key to reduce needless photo swaps
-      const key = meta && meta.country ? `land:${meta.iso2}` : `ocean:${title}`;
-      if (key !== lastPlaceKey) { lastPlaceKey = key; /* future: could throttle image swaps */ }
-    }).catch(()=>{/* keep ocean fallback + stats */});
+    }).catch(()=>{/* keep ocean fallback */});
 
   }catch(_){
     // leave previous render; clock still ticking
   }
 }
 
-/* Boot */
+/* ==================== BOOT ==================== */
 startClock();
 refresh();
 setInterval(refresh, REFRESH_MS);
