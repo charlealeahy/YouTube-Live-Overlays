@@ -9,88 +9,50 @@
 <title>ISS Overlay</title>
 <style>
   :root{
-    --bg:#0b1419;
-    --panel:#0d151b;
-    --panel2:#101b22;
-    --ink:#e9f2fb;
-    --muted:#a9bac8;
-    --shadow:0 30px 60px rgba(0,0,0,.45);
-    --radius:18px;
+    --bg:#0b1419; --panel:#0d151b; --panel2:#101b22; --ink:#e9f2fb; --muted:#a9bac8;
+    --shadow:0 30px 60px rgba(0,0,0,.45); --radius:18px;
   }
   *{box-sizing:border-box}
-  html,body{
-    margin:0;padding:24px;background:#0b1419;color:var(--ink);
-    font:500 16px/1.4 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Inter,Arial
-  }
-  #widget{
-    width:620px;max-width:100%;
-    background:linear-gradient(180deg,#0c141a,#0b1319);
-    border-radius:var(--radius);
-    padding:22px 22px 20px;
-    box-shadow:var(--shadow);
-    border:1px solid rgba(255,255,255,.04);
-  }
-  .title{
-    background:radial-gradient(80% 120% at 50% 0%,#101b22,#0c141a 70%);
-    border-radius:14px;
-    padding:14px 18px;
-    text-align:center;
-    font-weight:800;
-    letter-spacing:.2px;
-    font-size:28px;
-    color:#eaf3ff;
-    border:1px solid rgba(255,255,255,.04);
-  }
-  .row{
-    display:grid;grid-template-columns:128px 1fr;gap:18px;margin-top:16px;
-  }
-  /* Left column (image + LIVE) */
-  .left{
-    display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
-    background:var(--panel);
-    border-radius:14px;border:1px solid rgba(255,255,255,.05);
-    padding:14px;
-  }
-  .flagbox{width:96px;height:72px;border-radius:10px;overflow:hidden;
-    display:flex;align-items:center;justify-content:center;background:#0a1014}
+  html,body{margin:0;padding:24px;background:#0b1419;color:var(--ink);
+    font:500 16px/1.4 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Inter,Arial}
+  #widget{width:620px;max-width:100%;background:linear-gradient(180deg,#0c141a,#0b1319);
+    border-radius:var(--radius);padding:22px 22px 20px;box-shadow:var(--shadow);
+    border:1px solid rgba(255,255,255,.04)}
+  .title{background:radial-gradient(80% 120% at 50% 0%,#101b22,#0c141a 70%);
+    border-radius:14px;padding:14px 18px;text-align:center;font-weight:800;letter-spacing:.2px;
+    font-size:28px;color:#eaf3ff;border:1px solid rgba(255,255,255,.04)}
+  .row{display:grid;grid-template-columns:128px 1fr;gap:18px;margin-top:16px}
+  .left{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
+    background:var(--panel);border-radius:14px;border:1px solid rgba(255,255,255,.05);padding:14px}
+  .flagbox{width:96px;height:72px;border-radius:10px;overflow:hidden;display:flex;align-items:center;
+    justify-content:center;background:#0a1014}
   .flagbox img{width:100%;height:100%;object-fit:cover;display:block}
-  .live{
-    margin-top:14px;background:linear-gradient(180deg,#ff5a50,#e0433a);
-    color:#fff;font-weight:800;letter-spacing:.5px;padding:8px 18px;border-radius:12px;
-    border:1px solid rgba(0,0,0,.25);
-    box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 4px 12px rgba(224,67,58,.35)
-  }
+  .live{margin-top:14px;background:linear-gradient(180deg,#ff5a50,#e0433a);color:#fff;font-weight:800;
+    letter-spacing:.5px;padding:8px 18px;border-radius:12px;border:1px solid rgba(0,0,0,.25);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 4px 12px rgba(224,67,58,.35)}
   .live::before{content:"●";margin-right:8px;color:#fff;text-shadow:0 0 8px rgba(255,255,255,.6)}
-  /* Right panel (info) — matches left column height so text never drops below LIVE */
-  .info{
-    background:var(--panel2);border-radius:14px;border:1px solid rgba(255,255,255,.05);
+  .info{background:var(--panel2);border-radius:14px;border:1px solid rgba(255,255,255,.05);
     padding:16px 18px;display:flex;flex-direction:column;justify-content:center;
-    min-height:calc(72px + 14px + 38px);
-  }
+    min-height:calc(72px + 14px + 38px)}
   .kv{display:grid;grid-template-columns:110px 1fr;gap:6px 14px;align-content:center}
   .k{color:var(--muted);font-weight:700}
   .v{color:var(--ink);font-weight:800}
   .unit{color:var(--muted);font-weight:700;margin-left:6px}
   @media (max-width:560px){
-    #widget{padding:16px}
-    .title{font-size:22px;padding:12px 14px}
-    .row{grid-template-columns:110px 1fr;gap:12px}
-    .flagbox{width:86px;height:64px}
-    .live{padding:7px 14px}
-    .kv{grid-template-columns:96px 1fr}
+    #widget{padding:16px}.title{font-size:22px;padding:12px 14px}
+    .row{grid-template-columns:110px 1fr;gap:12px}.flagbox{width:86px;height:64px}
+    .live{padding:7px 14px}.kv{grid-template-columns:96px 1fr}
   }
 </style>
 </head>
 <body>
   <main id="widget" role="group" aria-label="ISS overlay">
     <div class="title" id="title">—</div>
-
     <div class="row">
       <aside class="left">
         <div class="flagbox"><img id="flag" alt="" src=""></div>
         <div class="live">LIVE</div>
       </aside>
-
       <section class="info">
         <div class="kv" id="grid"><!-- populated by JS --></div>
       </section>
@@ -99,66 +61,78 @@
 
 <script>
 /* ==================== CONFIG ==================== */
-const API_BASE   = 'https://iss-live.charlesleahy.workers.dev'; // change if needed
-const REFRESH_MS = 6000;   // fetch ISS + reverse geocode cadence
-const SLIDE_MS   = 7000;   // rotate between Stats <-> Country when on land
+const API_BASE   = 'https://iss-live.charlesleahy.workers.dev';
+const REFRESH_MS = 6000;
+const SLIDE_MS   = 7000;
 
-/* Debounce/anti-flicker parameters */
-const HYSTERESIS_SAMPLES = 2;   // need 2 consecutive identical detections before switching mode
-const HYSTERESIS_MAX_AGE = 30000; // keep mode at least 30s before allowing a flip (extra stability)
+/* Anti-flicker */
+const HYSTERESIS_SAMPLES = 2;
+const HYSTERESIS_MAX_AGE = 30000;
 
 /* ==================== ELEMENTS ==================== */
-const EL = {
-  title: document.getElementById('title'),
-  flag:  document.getElementById('flag'),
-  grid:  document.getElementById('grid'),
-};
+const EL = { title: document.getElementById('title'), flag: document.getElementById('flag'), grid: document.getElementById('grid') };
 
 /* ==================== UTILS ==================== */
 const fmt = (n,d=2)=> (n==null||!isFinite(n)) ? '—' : Number(n).toFixed(d).replace(/\.00$/,'');
 const nowUTC = ()=> new Date().toISOString().slice(11,19)+' UTC';
 const todayUTC = ()=> new Date().toISOString().slice(0,10);
 
-/* vMix-safe JSON (XHR) */
 function getJSON(url, timeout=8000){
   return new Promise((resolve,reject)=>{
     try{
-      const xhr = new XMLHttpRequest();
-      xhr.open('GET', url, true);
-      xhr.responseType = 'json';
-      xhr.timeout = timeout;
-      xhr.onload = ()=> (xhr.status>=200 && xhr.status<300)
-        ? resolve(xhr.response ?? JSON.parse(xhr.responseText))
-        : reject(new Error('HTTP '+xhr.status));
-      xhr.onerror = ()=>reject(new Error('Network error'));
-      xhr.ontimeout = ()=>reject(new Error('Timeout'));
-      xhr.setRequestHeader('Cache-Control','no-cache');
-      xhr.send();
+      const x=new XMLHttpRequest(); x.open('GET',url,true); x.responseType='json'; x.timeout=timeout;
+      x.onload=()=> (x.status>=200&&x.status<300)?resolve(x.response??JSON.parse(x.responseText)):reject(new Error('HTTP '+x.status));
+      x.onerror=()=>reject(new Error('Network')); x.ontimeout=()=>reject(new Error('Timeout'));
+      x.setRequestHeader('Cache-Control','no-cache'); x.send();
     }catch(e){ reject(e); }
   });
 }
-const fetchISS  = ()=> getJSON(`${API_BASE}/iss`);
-const fetchRG   = (lat,lon)=> getJSON(`${API_BASE}/rg?lat=${lat}&lon=${lon}&lang=en`);
-const fetchFacts= (iso2)=> iso2 ? getJSON(`${API_BASE}/facts?iso2=${iso2}`) : Promise.resolve({});
+const fetchISS = ()=> getJSON(`${API_BASE}/iss`);
+const fetchRG  = (lat,lon)=> getJSON(`${API_BASE}/rg?lat=${lat}&lon=${lon}&lang=en`);
+const fetchFacts=(iso2)=> iso2 ? getJSON(`${API_BASE}/facts?iso2=${iso2}`) : Promise.resolve({});
 
 /* ===== English-only helpers ===== */
 const hasIntl = (typeof Intl!=='undefined' && Intl.DisplayNames);
 const enDisplay = hasIntl ? new Intl.DisplayNames(['en'], {type:'region'}) : null;
 const ISO2_EN = {
-  US:'United States', GB:'United Kingdom', DE:'Germany', FR:'France', ES:'Spain',
-  IT:'Italy', CN:'China', JP:'Japan', IN:'India', BR:'Brazil', RU:'Russia',
-  CA:'Canada', AU:'Australia', MX:'Mexico', KR:'South Korea', TR:'Türkiye',
-  ID:'Indonesia', NL:'Netherlands', SE:'Sweden', NO:'Norway', DK:'Denmark',
-  FI:'Finland', PL:'Poland', UA:'Ukraine', SA:'Saudi Arabia', AE:'United Arab Emirates',
-  ZA:'South Africa', AR:'Argentina', EG:'Egypt'
+  US:'United States', GB:'United Kingdom', DE:'Germany', FR:'France', ES:'Spain', IT:'Italy', CN:'China',
+  JP:'Japan', IN:'India', BR:'Brazil', RU:'Russia', CA:'Canada', AU:'Australia', MX:'Mexico', KR:'South Korea',
+  TR:'Türkiye', ID:'Indonesia', NL:'Netherlands', SE:'Sweden', NO:'Norway', DK:'Denmark', FI:'Finland',
+  PL:'Poland', UA:'Ukraine', SA:'Saudi Arabia', AE:'United Arab Emirates', TH:'Thailand', VN:'Vietnam',
+  PH:'Philippines', MY:'Malaysia', SG:'Singapore', NZ:'New Zealand', IE:'Ireland', PT:'Portugal', GR:'Greece',
+  CH:'Switzerland', AT:'Austria', BE:'Belgium', CZ:'Czechia', HU:'Hungary', RO:'Romania', BG:'Bulgaria',
+  RS:'Serbia', HR:'Croatia', SI:'Slovenia', SK:'Slovakia', BY:'Belarus', KZ:'Kazakhstan', PK:'Pakistan',
+  BD:'Bangladesh', LK:'Sri Lanka', NP:'Nepal', IR:'Iran', IQ:'Iraq', JO:'Jordan', LB:'Lebanon', IL:'Israel',
+  QA:'Qatar', KW:'Kuwait', OM:'Oman', BH:'Bahrain', YE:'Yemen', MA:'Morocco', DZ:'Algeria', TN:'Tunisia',
+  KE:'Kenya', ET:'Ethiopia', NG:'Nigeria', GH:'Ghana', ZA:'South Africa', AR:'Argentina', CL:'Chile',
+  PE:'Peru', CO:'Colombia'
 };
-function countryNameEN(iso2, fallbackCountry){
-  if(!iso2) return fallbackCountry || '—';
-  const code = iso2.toUpperCase();
-  try{ if(enDisplay){ const n = enDisplay.of(code); if(n) return n; } }catch(_){}
-  return ISO2_EN[code] || fallbackCountry || code;
+function countryNameEN(iso2){
+  if(!iso2) return '—';
+  const code = String(iso2).toUpperCase();
+  try{ if(enDisplay){ const n=enDisplay.of(code); if(n) return n; } }catch(_){}
+  return ISO2_EN[code] || code; // never fall back to localized meta.country
 }
-const englishText = s => (typeof s==='string') ? s.normalize('NFD').replace(/[\u0300-\u036f]/g,'') : s;
+
+/* City/region in English: prefer *_en fields; else ASCII-only sanitization; else skip */
+const ASCII_OK = /^[A-Za-z0-9 .,'()\-&]+$/;
+function asciiClean(s){
+  if(typeof s!=='string' || !s) return '';
+  // strip accents, then remove non-ASCII
+  s = s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^\x20-\x7E]/g,'').trim();
+  // collapse spaces
+  s = s.replace(/\s+/g,' ');
+  if(!ASCII_OK.test(s) || s.length<2) return '';
+  return s;
+}
+function cityEN(meta){
+  return asciiClean(meta.city_en || meta.locality_en || meta.name_en ||
+                    meta.city || meta.locality || meta.town || meta.village || meta.municipality || meta.name || '');
+}
+function regionEN(meta){
+  return asciiClean(meta.region_en || meta.admin1_en || meta.state_en ||
+                    meta.region || meta.admin1 || meta.state || '');
+}
 
 /* ===== Ocean name heuristic (English) ===== */
 function whichOcean(lat, lon){
@@ -171,122 +145,77 @@ function whichOcean(lat, lon){
 }
 
 /* ===== Fixed ocean image ONLY ===== */
-const OCEAN_STATIC =
-  "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=192&h=144&q=70";
+const OCEAN_STATIC = "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=192&h=144&q=70";
 function setOceanPicture(){ if(EL.flag.src !== OCEAN_STATIC){ EL.flag.src = OCEAN_STATIC; EL.flag.alt = 'Ocean'; } }
 
-/* ===== Flag image for land ===== */
+/* ===== Flag (land) ===== */
 function setFlagFromISO(iso2){ EL.flag.src = `https://flagcdn.com/w160/${iso2.toLowerCase()}.png`; EL.flag.alt = 'Flag'; }
 
 /* ==================== SLIDES ==================== */
-let slideIdx = 0, slideTimer = null, currentSlides = [];
-
+let slideIdx=0, slideTimer=null, currentSlides=[];
 function setGridRows(rows){
-  EL.grid.innerHTML = '';
-  for(const [k,v,unit] of rows){
-    const kEl = document.createElement('div'); kEl.className='k'; kEl.textContent = k + ' :';
-    const vEl = document.createElement('div'); vEl.className='v';
-    if(unit){ vEl.innerHTML = `${v ?? '—'} <span class="unit">${unit}</span>`; }
-    else { vEl.textContent = v ?? '—'; }
+  EL.grid.innerHTML=''; for(const [k,v,unit] of rows){
+    const kEl=document.createElement('div'); kEl.className='k'; kEl.textContent=k+' :';
+    const vEl=document.createElement('div'); vEl.className='v';
+    vEl.innerHTML = unit ? `${v ?? '—'} <span class="unit">${unit}</span>` : (v ?? '—');
     EL.grid.appendChild(kEl); EL.grid.appendChild(vEl);
   }
 }
-function slideStats(iss){
-  return ()=> setGridRows([
-    ['UTC',  nowUTC(), ''],
-    ['Date', todayUTC(), ''],
-    ['Speed', fmt(iss.speed_kps,2), 'km/s'],
-    ['Elev',  fmt(iss.alt_km,0),    'km'],
-  ]);
-}
+function slideStats(iss){ return ()=> setGridRows([ ['UTC',nowUTC(),''], ['Date',todayUTC(),''], ['Speed',fmt(iss.speed_kps,2),'km/s'], ['Elev',fmt(iss.alt_km,0),'km'] ]); }
 function slideCountry(facts){
-  const strip = englishText;
-  return ()=> setGridRows([
-    ['Capital', strip(facts.capital) ?? '—', ''],
-    ['Density', facts.density ?? '—', ''],
-    ['Poverty', facts.poverty ?? '—', ''],
-  ]);
+  const strip = s => asciiClean(String(s||'')) || '—';
+  return ()=> setGridRows([ ['Capital',strip(facts.capital),''], ['Density',facts.density ?? '—',''], ['Poverty',facts.poverty ?? '—',''] ]);
 }
 function startSlides(){
-  if(slideTimer){ clearInterval(slideTimer); slideTimer = null; }
-  slideIdx = 0;
-  if(!currentSlides.length){ EL.grid.innerHTML=''; return; }
+  if(slideTimer){ clearInterval(slideTimer); slideTimer=null; }
+  slideIdx=0; if(!currentSlides.length){ EL.grid.innerHTML=''; return; }
   currentSlides[0]();
   if(currentSlides.length>1){
-    slideTimer = setInterval(()=>{
-      slideIdx = (slideIdx+1) % currentSlides.length;
-      currentSlides[slideIdx]();
-    }, SLIDE_MS);
+    slideTimer = setInterval(()=>{ slideIdx=(slideIdx+1)%currentSlides.length; currentSlides[slideIdx](); }, SLIDE_MS);
   }
 }
-/* live clock updates the UTC row each second if visible */
-function startClock(){
-  function tick(){
-    const labels = EL.grid.querySelectorAll('.k');
-    for(let i=0;i<labels.length;i++){
-      if(labels[i].textContent.trim().startsWith('UTC')){
-        const v = labels[i].nextElementSibling;
-        if(v) v.firstChild ? v.firstChild.nodeValue = nowUTC() : v.textContent = nowUTC();
-        break;
-      }
-    }
-    setTimeout(tick, 1000 - (Date.now()%1000));
-  }
-  tick();
-}
+/* live UTC tick */
+(function tick(){ const labs=EL.grid.querySelectorAll('.k'); for(let i=0;i<labs.length;i++){ if(labs[i].textContent.trim().startsWith('UTC')){ const v=labs[i].nextElementSibling; if(v) v.firstChild ? v.firstChild.nodeValue=nowUTC() : v.textContent=nowUTC(); break; } } setTimeout(tick, 1000 - (Date.now()%1000)); })();
 
-/* repaint helper for older CEF */
+/* repaint helper (old CEF) */
 function repaint(el){ el.style.display='none'; void el.offsetHeight; el.style.display='block'; }
 
 /* ==================== STATE & ANTI-FLICKER ==================== */
-let stableMode = 'ocean'; // 'ocean' | 'land'
-let stableSince = 0;
-let detectMode  = 'ocean';
-let detectCount = 0;
-let lastAppliedKey = '';
-let seq = 0; // race guard
-
-function proposeMode(meta){
-  return (meta && meta.iso2) ? 'land' : 'ocean';
-}
-function consider(modeCandidate){
-  const now = Date.now();
-  if(modeCandidate !== detectMode){
-    detectMode = modeCandidate;
-    detectCount = 1;
-  } else {
-    detectCount++;
-  }
-  const enoughSamples = detectCount >= HYSTERESIS_SAMPLES;
+let stableMode='ocean', stableSince=0, detectMode='ocean', detectCount=0, lastAppliedKey='', seq=0;
+const proposeMode = meta => (meta && meta.iso2) ? 'land' : 'ocean';
+function consider(candidate){
+  const now=Date.now();
+  if(candidate!==detectMode){ detectMode=candidate; detectCount=1; } else { detectCount++; }
+  const enough = detectCount>=HYSTERESIS_SAMPLES;
   const ageOk = (now - stableSince) >= HYSTERESIS_MAX_AGE;
-  if((modeCandidate !== stableMode) && (enoughSamples || ageOk)){
-    stableMode = modeCandidate;
-    stableSince = now;
-    return true; // changed
-  }
-  return false; // unchanged
+  if(candidate!==stableMode && (enough || ageOk)){ stableMode=candidate; stableSince=now; return true; }
+  return false;
 }
 
 /* ==================== MAIN REFRESH ==================== */
 async function refresh(){
-  const mySeq = ++seq; // capture sequence for this tick
+  const mySeq=++seq;
   try{
-    const iss = await fetchISS(); // {lat,lon,alt_km,speed_kps}
+    const iss = await fetchISS();
 
-    // Kick RG but don't apply UI yet; we'll decide with hysteresis
-    fetchRG(iss.lat, iss.lon).then(async (meta)=>{
-      if(mySeq !== seq) return; // stale callback, ignore
+    // Default: ocean title + fixed photo
+    EL.title.textContent = whichOcean(iss.lat, iss.lon); repaint(EL.title);
+    setOceanPicture();
+    currentSlides = [ slideStats(iss) ];
+    startSlides();
+
+    // Try RG (land/ocean + title + slides)
+    fetchRG(iss.lat, iss.lon).then(async(meta)=>{
+      if(mySeq!==seq) return;
 
       const changed = consider(proposeMode(meta));
 
-      // Build a state "key" so DOM updates happen atomically and only when needed
-      let key, title;
-      if(stableMode === 'land' && meta && meta.iso2){
-        const country = countryNameEN(meta.iso2, meta.country);
-        const city = englishText(
-          meta.city || meta.locality || meta.town || meta.village || meta.municipality || meta.name || ''
-        );
-        const region = englishText(meta.region || meta.admin1 || '');
+      // Build English title
+      let title, key;
+      if(stableMode==='land' && meta && meta.iso2){
+        const country = countryNameEN(meta.iso2);
+        const city = cityEN(meta);
+        const region = regionEN(meta);
         title = city ? `${city}, ${country}` : (region ? `${region}, ${country}` : country);
         key = `land:${meta.iso2}:${title}`;
       }else{
@@ -294,59 +223,35 @@ async function refresh(){
         key = `ocean:${title}`;
       }
 
-      if (changed || key !== lastAppliedKey){
-        // Apply visuals & slides together (atomic)
+      if(changed || key!==lastAppliedKey){
         EL.title.textContent = title; repaint(EL.title);
 
-        if(stableMode === 'land' && meta && meta.iso2){
+        if(stableMode==='land' && meta && meta.iso2){
           setFlagFromISO(meta.iso2);
-
-          // Ensure Country slide is present immediately (placeholders first)
-          let facts = {capital:'—', density:'—', poverty:'—'};
+          // Show Country slide immediately (placeholders), then fill facts
+          let facts={capital:'—', density:'—', poverty:'—'};
           currentSlides = [ slideStats(iss), slideCountry(facts) ];
           startSlides();
-
-          // Fill facts asynchronously (ignore races)
           fetchFacts(meta.iso2).then(f=>{
-            if(mySeq !== seq) return; // newer refresh won
-            if(f && typeof f==='object'){
-              facts = Object.assign(facts, f);
-              // Re-render only if still on land
-              if(stableMode==='land') {
-                currentSlides = [ slideStats(iss), slideCountry(facts) ];
-                startSlides();
-              }
-            }
+            if(mySeq!==seq) return;
+            if(f && typeof f==='object'){ facts=Object.assign(facts,f); currentSlides=[ slideStats(iss), slideCountry(facts) ]; startSlides(); }
           }).catch(()=>{ /* keep placeholders */ });
-
         }else{
-          // Ocean
           setOceanPicture();
           currentSlides = [ slideStats(iss) ];
           startSlides();
         }
         lastAppliedKey = key;
       }else{
-        // Even if state didn't change, update stats slide with latest iss numbers
-        if(currentSlides.length){
-          currentSlides[0] = slideStats(iss);
-          if(slideIdx===0){ currentSlides[0](); } // refresh visible stats
-        }
+        // refresh visible stats numbers without flipping slides
+        if(currentSlides.length){ currentSlides[0] = slideStats(iss); if(slideIdx===0) currentSlides[0](); }
       }
-    }).catch(()=>{
-      // If RG fails, keep current stable state; only refresh stats numbers
-      if(currentSlides.length){
-        currentSlides[0] = slideStats({speed_kps:NaN, alt_km:NaN});
-      }
-    });
+    }).catch(()=>{ /* keep ocean defaults */ });
 
-  }catch(_){
-    // swallow transient errors; clock still ticks
-  }
+  }catch(_){ /* ignore transient errors */ }
 }
 
 /* ==================== BOOT ==================== */
-startClock();
 refresh();
 setInterval(refresh, REFRESH_MS);
 </script>
