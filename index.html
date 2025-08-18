@@ -47,21 +47,27 @@
 </head>
 <body>
   <main id="widget" role="group" aria-label="ISS overlay">
-    <div class="title" id="title">—</div>
+    <div class="title" id="title">Connecting…</div>
     <div class="row">
       <aside class="left">
         <div class="flagbox"><img id="flag" alt="" src=""></div>
         <div class="live">LIVE</div>
       </aside>
       <section class="info">
-        <div class="kv" id="grid"><!-- populated by JS --></div>
+        <div class="kv" id="grid">
+          <!-- Safe placeholders so the panel is never empty -->
+          <div class="k">UTC :</div><div class="v" id="utcPlaceholder">—</div>
+          <div class="k">Date :</div><div class="v" id="datePlaceholder">—</div>
+          <div class="k">Speed :</div><div class="v">— <span class="unit">km/s</span></div>
+          <div class="k">Elev :</div><div class="v">— <span class="unit">km</span></div>
+        </div>
       </section>
     </div>
   </main>
 
 <script>
 /* ==================== CONFIG ==================== */
-const API_BASE   = 'https://iss-live.charlesleahy.workers.dev';
+const API_BASE   = 'https://iss-live.charlesleahy.workers.dev';  // your Worker
 const REFRESH_MS = 6000;
 const SLIDE_MS   = 7000;
 
@@ -69,10 +75,10 @@ const SLIDE_MS   = 7000;
 const HYSTERESIS_SAMPLES = 2;
 const HYSTERESIS_MAX_AGE = 30000;
 
-/* ==================== ELEMENTS ==================== */
+/* Elements */
 const EL = { title: document.getElementById('title'), flag: document.getElementById('flag'), grid: document.getElementById('grid') };
 
-/* ==================== UTILS ==================== */
+/* Utils */
 const fmt = (n,d=2)=> (n==null||!isFinite(n)) ? '—' : Number(n).toFixed(d).replace(/\.00$/,'');
 const nowUTC = ()=> new Date().toISOString().slice(11,19)+' UTC';
 const todayUTC = ()=> new Date().toISOString().slice(0,10);
@@ -91,11 +97,10 @@ const fetchISS = ()=> getJSON(`${API_BASE}/iss`);
 const fetchRG  = (lat,lon)=> getJSON(`${API_BASE}/rg?lat=${lat}&lon=${lon}&lang=en`);
 const fetchFacts=(iso2)=> iso2 ? getJSON(`${API_BASE}/facts?iso2=${iso2}`) : Promise.resolve({});
 
-/* ===== English-only helpers ===== */
+/* English helpers */
 const hasIntl = (typeof Intl!=='undefined' && Intl.DisplayNames);
 const enDisplay = hasIntl ? new Intl.DisplayNames(['en'], {type:'region'}) : null;
-const ISO2_EN = {
-  US:'United States', GB:'United Kingdom', DE:'Germany', FR:'France', ES:'Spain', IT:'Italy', CN:'China',
+const ISO2_EN = { US:'United States', GB:'United Kingdom', DE:'Germany', FR:'France', ES:'Spain', IT:'Italy', CN:'China',
   JP:'Japan', IN:'India', BR:'Brazil', RU:'Russia', CA:'Canada', AU:'Australia', MX:'Mexico', KR:'South Korea',
   TR:'Türkiye', ID:'Indonesia', NL:'Netherlands', SE:'Sweden', NO:'Norway', DK:'Denmark', FI:'Finland',
   PL:'Poland', UA:'Ukraine', SA:'Saudi Arabia', AE:'United Arab Emirates', TH:'Thailand', VN:'Vietnam',
@@ -105,22 +110,17 @@ const ISO2_EN = {
   BD:'Bangladesh', LK:'Sri Lanka', NP:'Nepal', IR:'Iran', IQ:'Iraq', JO:'Jordan', LB:'Lebanon', IL:'Israel',
   QA:'Qatar', KW:'Kuwait', OM:'Oman', BH:'Bahrain', YE:'Yemen', MA:'Morocco', DZ:'Algeria', TN:'Tunisia',
   KE:'Kenya', ET:'Ethiopia', NG:'Nigeria', GH:'Ghana', ZA:'South Africa', AR:'Argentina', CL:'Chile',
-  PE:'Peru', CO:'Colombia'
-};
+  PE:'Peru', CO:'Colombia' };
 function countryNameEN(iso2){
   if(!iso2) return '—';
   const code = String(iso2).toUpperCase();
   try{ if(enDisplay){ const n=enDisplay.of(code); if(n) return n; } }catch(_){}
-  return ISO2_EN[code] || code; // never fall back to localized meta.country
+  return ISO2_EN[code] || code;
 }
-
-/* City/region in English: prefer *_en fields; else ASCII-only sanitization; else skip */
 const ASCII_OK = /^[A-Za-z0-9 .,'()\-&]+$/;
 function asciiClean(s){
   if(typeof s!=='string' || !s) return '';
-  // strip accents, then remove non-ASCII
   s = s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^\x20-\x7E]/g,'').trim();
-  // collapse spaces
   s = s.replace(/\s+/g,' ');
   if(!ASCII_OK.test(s) || s.length<2) return '';
   return s;
@@ -134,7 +134,7 @@ function regionEN(meta){
                     meta.region || meta.admin1 || meta.state || '');
 }
 
-/* ===== Ocean name heuristic (English) ===== */
+/* Ocean heuristic */
 function whichOcean(lat, lon){
   lon = ((lon + 180) % 360 + 360) % 360 - 180;
   if (lat >= 66) return 'Arctic Ocean';
@@ -144,14 +144,29 @@ function whichOcean(lat, lon){
   return 'Pacific Ocean';
 }
 
-/* ===== Fixed ocean image ONLY ===== */
+/* Ocean image (fixed) with strong fallback */
 const OCEAN_STATIC = "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=192&h=144&q=70";
-function setOceanPicture(){ if(EL.flag.src !== OCEAN_STATIC){ EL.flag.src = OCEAN_STATIC; EL.flag.alt = 'Ocean'; } }
+const FALLBACK_DATA = "data:image/svg+xml;charset=utf-8,"+encodeURIComponent(
+  `<svg xmlns='http://www.w3.org/2000/svg' width='192' height='144'>
+     <defs><linearGradient id='g' x1='0' y1='0' x2='0' y2='1'>
+       <stop offset='0' stop-color='%230d1b24'/><stop offset='1' stop-color='%23112531'/>
+     </linearGradient></defs><rect fill='url(%23g)' width='100%' height='100%'/></svg>`
+);
+function setOceanPicture(){
+  if(EL.flag.dataset.kind!=='ocean' || EL.flag.src!==OCEAN_STATIC){
+    EL.flag.dataset.kind='ocean';
+    EL.flag.onerror = ()=>{ EL.flag.src = FALLBACK_DATA; };
+    EL.flag.src = OCEAN_STATIC; EL.flag.alt='Ocean';
+  }
+}
+function setFlagFromISO(iso2){
+  EL.flag.dataset.kind='flag';
+  EL.flag.onerror = ()=>{ EL.flag.src = FALLBACK_DATA; };
+  EL.flag.src = `https://flagcdn.com/w160/${iso2.toLowerCase()}.png`;
+  EL.flag.alt = 'Flag';
+}
 
-/* ===== Flag (land) ===== */
-function setFlagFromISO(iso2){ EL.flag.src = `https://flagcdn.com/w160/${iso2.toLowerCase()}.png`; EL.flag.alt = 'Flag'; }
-
-/* ==================== SLIDES ==================== */
+/* Slides */
 let slideIdx=0, slideTimer=null, currentSlides=[];
 function setGridRows(rows){
   EL.grid.innerHTML=''; for(const [k,v,unit] of rows){
@@ -161,26 +176,37 @@ function setGridRows(rows){
     EL.grid.appendChild(kEl); EL.grid.appendChild(vEl);
   }
 }
-function slideStats(iss){ return ()=> setGridRows([ ['UTC',nowUTC(),''], ['Date',todayUTC(),''], ['Speed',fmt(iss.speed_kps,2),'km/s'], ['Elev',fmt(iss.alt_km,0),'km'] ]); }
+function slideStats(iss){ return ()=> setGridRows([
+  ['UTC', nowUTC(), ''],
+  ['Date', todayUTC(), ''],
+  ['Speed', fmt(iss?.speed_kps,2), 'km/s'],
+  ['Elev', fmt(iss?.alt_km,0), 'km'],
+]);}
 function slideCountry(facts){
   const strip = s => asciiClean(String(s||'')) || '—';
-  return ()=> setGridRows([ ['Capital',strip(facts.capital),''], ['Density',facts.density ?? '—',''], ['Poverty',facts.poverty ?? '—',''] ]);
+  return ()=> setGridRows([
+    ['Capital', strip(facts.capital), ''],
+    ['Density', facts.density ?? '—',''],
+    ['Poverty', facts.poverty ?? '—',''],
+  ]);
 }
 function startSlides(){
   if(slideTimer){ clearInterval(slideTimer); slideTimer=null; }
-  slideIdx=0; if(!currentSlides.length){ EL.grid.innerHTML=''; return; }
+  slideIdx=0; if(!currentSlides.length){ return; }
   currentSlides[0]();
   if(currentSlides.length>1){
     slideTimer = setInterval(()=>{ slideIdx=(slideIdx+1)%currentSlides.length; currentSlides[slideIdx](); }, SLIDE_MS);
   }
 }
-/* live UTC tick */
-(function tick(){ const labs=EL.grid.querySelectorAll('.k'); for(let i=0;i<labs.length;i++){ if(labs[i].textContent.trim().startsWith('UTC')){ const v=labs[i].nextElementSibling; if(v) v.firstChild ? v.firstChild.nodeValue=nowUTC() : v.textContent=nowUTC(); break; } } setTimeout(tick, 1000 - (Date.now()%1000)); })();
+/* live UTC tick (keeps the first slide time moving) */
+(function tick(){ const labs=EL.grid.querySelectorAll('.k'); for(let i=0;i<labs.length;i++){
+  if(labs[i].textContent.trim().startsWith('UTC')){ const v=labs[i].nextElementSibling; if(v) v.firstChild ? v.firstChild.nodeValue=nowUTC() : v.textContent=nowUTC(); break; }
+} setTimeout(tick, 1000 - (Date.now()%1000)); })();
 
 /* repaint helper (old CEF) */
 function repaint(el){ el.style.display='none'; void el.offsetHeight; el.style.display='block'; }
 
-/* ==================== STATE & ANTI-FLICKER ==================== */
+/* State & Anti-flicker */
 let stableMode='ocean', stableSince=0, detectMode='ocean', detectCount=0, lastAppliedKey='', seq=0;
 const proposeMode = meta => (meta && meta.iso2) ? 'land' : 'ocean';
 function consider(candidate){
@@ -192,25 +218,28 @@ function consider(candidate){
   return false;
 }
 
-/* ==================== MAIN REFRESH ==================== */
+/* ===== Boot with a visible placeholder so it never looks blank ===== */
+setOceanPicture();
+currentSlides = [ slideStats(null) ]; // placeholders (—)
+startSlides();
+
+/* Main refresh */
 async function refresh(){
   const mySeq=++seq;
   try{
     const iss = await fetchISS();
 
-    // Default: ocean title + fixed photo
+    // Default: ocean title + photo + stats
     EL.title.textContent = whichOcean(iss.lat, iss.lon); repaint(EL.title);
     setOceanPicture();
     currentSlides = [ slideStats(iss) ];
     startSlides();
 
-    // Try RG (land/ocean + title + slides)
+    // Reverse-geocode to check land/ocean & build English title
     fetchRG(iss.lat, iss.lon).then(async(meta)=>{
       if(mySeq!==seq) return;
-
       const changed = consider(proposeMode(meta));
 
-      // Build English title
       let title, key;
       if(stableMode==='land' && meta && meta.iso2){
         const country = countryNameEN(meta.iso2);
@@ -228,7 +257,6 @@ async function refresh(){
 
         if(stableMode==='land' && meta && meta.iso2){
           setFlagFromISO(meta.iso2);
-          // Show Country slide immediately (placeholders), then fill facts
           let facts={capital:'—', density:'—', poverty:'—'};
           currentSlides = [ slideStats(iss), slideCountry(facts) ];
           startSlides();
@@ -243,15 +271,23 @@ async function refresh(){
         }
         lastAppliedKey = key;
       }else{
-        // refresh visible stats numbers without flipping slides
         if(currentSlides.length){ currentSlides[0] = slideStats(iss); if(slideIdx===0) currentSlides[0](); }
       }
-    }).catch(()=>{ /* keep ocean defaults */ });
+    }).catch((e)=>{ /* leave ocean defaults */ console.warn('RG fail', e); });
 
-  }catch(_){ /* ignore transient errors */ }
+  }catch(err){
+    console.warn('ISS fetch failed:', err);
+    // Keep UI populated (not blank)
+    if(EL.title.textContent==='Connecting…' || EL.title.textContent==='—'){
+      EL.title.textContent = 'Waiting for data…'; repaint(EL.title);
+      setOceanPicture();
+      currentSlides = [ slideStats(null) ];
+      startSlides();
+    }
+  }
 }
 
-/* ==================== BOOT ==================== */
+/* Run & repeat */
 refresh();
 setInterval(refresh, REFRESH_MS);
 </script>
