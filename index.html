@@ -66,14 +66,14 @@
 
 <script>
 /* ==================== CONFIG ==================== */
-const API_BASE   = 'https://iss-live.charlesleahy.workers.dev';  // your Worker
-const REFRESH_MS = 6000;      // pull fresh ISS data
-const SLIDE_MS   = 7000;      // stats / country-info cadence
+const API_BASE   = 'https://iss-live.charlesleahy.workers.dev';
+const REFRESH_MS = 6000;
+const SLIDE_MS   = 7000;
 
-/* Anti-flicker “stickiness” */
-const LAND_CONSEC_HITS  = 2;         // need this many consecutive land detections to enter land from ocean
-const OCEAN_CONSEC_HITS = 4;         // need this many consecutive ocean detections to leave land
-const STICKY_MS         = 90000;     // once we switch, stay at least this long unless strong evidence
+/* Anti-flicker */
+const LAND_CONSEC_HITS  = 2;
+const OCEAN_CONSEC_HITS = 4;
+const STICKY_MS         = 90000;
 
 /* Ocean photo (static) + tiny SVG fallback */
 const OCEAN_STATIC = "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=192&h=144&q=70";
@@ -91,7 +91,7 @@ const fmt = (n,d=2)=> (n==null||!isFinite(n)) ? '—' : Number(n).toFixed(d).rep
 const nowUTC = ()=> new Date().toISOString().slice(11,19)+' UTC';
 const todayUTC = ()=> new Date().toISOString().slice(0,10);
 
-/* Generic JSON with cache-buster (works in vMix/CEF) */
+/* JSON fetch with cache-buster (works in vMix/CEF) */
 function getJSON(url, timeout=9000){
   const bust = url.includes('?') ? `&_t=${Date.now()}` : `?_t=${Date.now()}`;
   return new Promise((resolve,reject)=>{
@@ -102,20 +102,20 @@ function getJSON(url, timeout=9000){
   });
 }
 
-/* CORS-safe ISS sources */
+/* ISS & RG */
 async function fetchISS(){
   try{
     const r = await getJSON(`${API_BASE}/iss`);
     if (r && typeof r.lat==='number' && typeof r.lon==='number') return r;
     throw new Error('Bad Worker payload');
-  }catch(e){/*next*/}
+  }catch(e){/* next */}
   try{
     const w = await getJSON('https://r.jina.ai/http://api.wheretheiss.at/v1/satellites/25544');
     if (w && isFinite(w.latitude) && isFinite(w.longitude)) {
       return { lat:+w.latitude, lon:+w.longitude, alt_km:isFinite(w.altitude)?+w.altitude:420,
                speed_kps:isFinite(w.velocity)?(+w.velocity)/3600:7.66, src:'wheretheiss/jina' };
     }
-  }catch(e){/*next*/}
+  }catch(e){/* next */}
   const o = await getJSON('https://r.jina.ai/http://api.open-notify.org/iss-now.json');
   const lat = Number(o?.iss_position?.latitude), lon = Number(o?.iss_position?.longitude);
   if (!isFinite(lat) || !isFinite(lon)) throw new Error('Open-notify payload invalid');
@@ -153,15 +153,63 @@ const countryNameEN = iso2 => {
 const cityEN   = m => asciiClean(m.city_en||m.locality_en||m.name_en||m.city||m.locality||m.town||m.village||m.municipality||m.name||'');
 const regionEN = m => asciiClean(m.region_en||m.admin1_en||m.state_en||m.region||m.admin1||m.state||'');
 
-/* Ocean detection & visuals */
-function whichOcean(lat, lon){
-  lon = ((lon + 180) % 360 + 360) % 360 - 180;
-  if (lat >= 66) return 'Arctic Ocean';
-  if (lat <= -50) return 'Southern Ocean';
-  if (lon >= 20 && lon <= 147 && lat >= -60 && lat <= 30) return 'Indian Ocean';
-  if (lon >= -100 && lon <= 20 && lat >= -60 && lat <= 66) return 'Atlantic Ocean';
-  return 'Pacific Ocean';
+/* ---------------- Water body classifier ---------------- */
+/* Bounding boxes for key seas/gulfs (minLon, minLat, maxLon, maxLat). Handles dateline wrap. */
+const SEAS = [
+  ['Mediterranean Sea', [-6, 30, 36, 46]],
+  ['Black Sea', [27, 40, 42.5, 47.5]],
+  ['Red Sea', [33, 12, 44, 30]],
+  ['Arabian Sea', [50, 5, 80, 25]],
+  ['Bay of Bengal', [80, 5, 101, 23]],
+  ['Persian Gulf', [48, 24, 57, 31]],
+  ['Gulf of Oman', [56, 22, 62, 26]],
+  ['Gulf of Aden', [44, 11, 52, 17]],
+  ['South China Sea', [99, 0, 121.5, 23.5]],
+  ['East China Sea', [121.5, 24, 131, 33]],
+  ['Sea of Japan', [127, 34, 143, 50]],
+  ['Philippine Sea', [124, 5, 160, 35]],
+  ['Coral Sea', [146, -26, 170, -10]],
+  ['Tasman Sea', [146, -47, 174, -28]],
+  // Bering Sea wraps dateline -> split in two boxes:
+  ['Bering Sea (W)', [160, 50, 180, 66]],
+  ['Bering Sea (E)', [-180, 50, -160, 66]],
+  ['Gulf of Mexico', [-98, 18, -81, 30]],
+  ['Caribbean Sea', [-88, 10, -60, 20]],
+  ['North Sea', [-4, 51, 9, 60]],
+  ['Baltic Sea', [9, 53, 31, 66]],
+  ['Gulf of Guinea', [-18, -6, 10, 6]],
+];
+function inBox(lat, lon, [minLon, minLat, maxLon, maxLat]){
+  if(minLon<=maxLon){
+    return lon>=minLon && lon<=maxLon && lat>=minLat && lat<=maxLat;
+  }else{ // wrap
+    return ((lon>=minLon && lon<=180) || (lon>=-180 && lon<=maxLon)) && lat>=minLat && lat<=maxLat;
+  }
 }
+function classifySea(lat, lon){
+  for(const [name, box] of SEAS){
+    if(inBox(lat, lon, box)) return name.replace(' (W)','').replace(' (E)','');
+  }
+  return null;
+}
+function classifyMajorOcean(lat, lon){
+  if(lat>=66) return 'Arctic Ocean';
+  if(lat<=-55) return 'Southern Ocean';
+
+  // More careful split to avoid assigning Philippine area to Indian Ocean.
+  if(lon>=145 || lon<=-100) return 'Pacific Ocean';                 // big Pacific swath
+  if(lon>-100 && lon<20)    return 'Atlantic Ocean';
+
+  // 20..145E zone: mostly Indian, except NE quadrant (>=120E & >=0°) which is western Pacific/Asia seas
+  if(lon>=120 && lat>=0)    return 'Pacific Ocean';
+  return 'Indian Ocean';
+}
+function waterBodyName(lat, lon){
+  const sea = classifySea(lat, lon);
+  return sea ? sea : classifyMajorOcean(lat, lon);
+}
+
+/* Ocean visuals */
 function setOceanPicture(){
   if(EL.flag.dataset.kind!=='ocean' || EL.flag.src!==OCEAN_STATIC){
     EL.flag.dataset.kind='ocean';
@@ -218,13 +266,13 @@ function startSlides(){
 function repaint(el){ el.style.display='none'; void el.offsetHeight; el.style.display='block'; }
 
 /* --- Sticky anti-flicker state --- */
-let stableMode='ocean';      // what we are currently showing
-let lastSwitch=0;            // when we last switched modes
-let landHits=0, oceanHits=0; // consecutive detections
-let lastAppliedKey='';       // for idempotent UI updates
+let stableMode='ocean';
+let lastSwitch=0;
+let landHits=0, oceanHits=0;
+let lastAppliedKey='';
 let seq=0;
 
-/* Decide land vs ocean (prefer Worker ocean flag if present) */
+/* Decide land vs ocean (prefer Worker ocean flag if present, else iso2 presence) */
 const proposeMode = meta => {
   if(!meta) return 'ocean';
   if (meta.ocean) return 'ocean';
@@ -249,7 +297,7 @@ function shouldSwitch(candidate){
   return false;
 }
 
-/* Boot placeholders so it never looks blank */
+/* Boot placeholders */
 setOceanPicture();
 currentSlides = [ slideStats(null) ];
 startSlides();
@@ -260,12 +308,12 @@ async function refresh(){
   try{
     const iss = await fetchISS();
 
-    // Default view (ocean) immediately so there’s always something
-    const oceanTitle = whichOcean(iss.lat, iss.lon);
-    if(stableMode==='ocean'){ EL.title.textContent = oceanTitle; repaint(EL.title); setOceanPicture(); }
+    // Default ocean view immediately
+    const wbTitle = waterBodyName(iss.lat, iss.lon);
+    if(stableMode==='ocean'){ EL.title.textContent = wbTitle; repaint(EL.title); setOceanPicture(); }
     currentSlides = [ slideStats(iss) ]; startSlides();
 
-    // Try to resolve land/ocean and maybe country + facts
+    // Reverse-geocode; let sticky logic decide whether to show land or ocean
     fetchRG(iss.lat, iss.lon).then(async(meta)=>{
       if(mySeq!==seq) return;
 
@@ -275,7 +323,7 @@ async function refresh(){
       if(switchNow){
         stableMode = candidate;
         lastSwitch = Date.now();
-        lastAppliedKey = ''; // force UI update
+        lastAppliedKey = '';
       }
 
       let title, key;
@@ -304,12 +352,10 @@ async function refresh(){
           }).catch(()=>{ /* keep placeholders */ });
           lastAppliedKey = key;
         }else{
-          // keep stats fresh even if title unchanged
           if(currentSlides.length){ currentSlides[0] = slideStats(iss); if(slideIdx===0) currentSlides[0](); }
         }
       }else{
-        // Ocean (sticky)
-        const t = whichOcean(iss.lat, iss.lon);
+        const t = waterBodyName(iss.lat, iss.lon);
         key = `ocean:${t}`;
         if(key!==lastAppliedKey){
           EL.title.textContent = t; repaint(EL.title);
