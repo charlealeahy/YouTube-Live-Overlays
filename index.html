@@ -1,386 +1,172 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-<meta http-equiv="Pragma" content="no-cache" />
-<meta http-equiv="Expires" content="0" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>ISS Overlay</title>
-<style>
-  :root{
-    --bg:#0b1419; --panel:#0d151b; --panel2:#101b22; --ink:#e9f2fb; --muted:#a9bac8;
-    --shadow:0 30px 60px rgba(0,0,0,.45); --radius:18px;
-  }
-  *{box-sizing:border-box}
-  html,body{margin:0;padding:24px;background:#0b1419;color:var(--ink);
-    font:500 16px/1.4 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Inter,Arial}
-  #widget{width:620px;max-width:100%;background:linear-gradient(180deg,#0c141a,#0b1319);
-    border-radius:var(--radius);padding:22px 22px 20px;box-shadow:var(--shadow);
-    border:1px solid rgba(255,255,255,.04)}
-  .title{background:radial-gradient(80% 120% at 50% 0%,#101b22,#0c141a 70%);
-    border-radius:14px;padding:14px 18px;text-align:center;font-weight:800;letter-spacing:.2px;
-    font-size:28px;color:#eaf3ff;border:1px solid rgba(255,255,255,.04)}
-  .row{display:grid;grid-template-columns:128px 1fr;gap:18px;margin-top:16px}
-  .left{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
-    background:var(--panel);border-radius:14px;border:1px solid rgba(255,255,255,.05);padding:14px}
-  .flagbox{width:96px;height:72px;border-radius:10px;overflow:hidden;display:flex;align-items:center;
-    justify-content:center;background:#0a1014}
-  .flagbox img{width:100%;height:100%;object-fit:cover;display:block}
-  .live{margin-top:14px;background:linear-gradient(180deg,#ff5a50,#e0433a);color:#fff;font-weight:800;
-    letter-spacing:.5px;padding:8px 18px;border-radius:12px;border:1px solid rgba(0,0,0,.25);
-    box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 4px 12px rgba(224,67,58,.35)}
-  .live::before{content:"●";margin-right:8px;color:#fff;text-shadow:0 0 8px rgba(255,255,255,.6)}
-  .info{background:var(--panel2);border-radius:14px;border:1px solid rgba(255,255,255,.05);
-    padding:16px 18px;display:flex;flex-direction:column;justify-content:center;
-    min-height:calc(72px + 14px + 38px)}
-  .kv{display:grid;grid-template-columns:110px 1fr;gap:6px 14px;align-content:center}
-  .k{color:var(--muted);font-weight:700}
-  .v{color:var(--ink);font-weight:800}
-  .unit{color:var(--muted);font-weight:700;margin-left:6px}
-  @media (max-width:560px){
-    #widget{padding:16px}.title{font-size:22px;padding:12px 14px}
-    .row{grid-template-columns:110px 1fr;gap:12px}.flagbox{width:86px;height:64px}
-    .live{padding:7px 14px}.kv{grid-template-columns:96px 1fr}
-  }
-</style>
+  <meta charset="utf-8" />
+  <title>LiveLens – World Cams Map</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Marker Cluster -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+  <!-- HLS for .m3u8 playback -->
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
+  <style>
+    :root { --red:#e21; --bg:#0b0b0e; --panel:#141419; --text:#fff; }
+    html,body { height:100%; margin:0; font-family:system-ui, Arial, sans-serif; background:#000; }
+    #app { display:grid; grid-template-columns: 320px 1fr; height:100%; }
+    #sidebar { background:var(--panel); color:var(--text); padding:14px; overflow:auto; }
+    #brand { display:flex; align-items:center; gap:8px; font-weight:800; letter-spacing:.3px; }
+    #brand .tv { background:var(--red); padding:2px 6px; border-radius:6px; color:#fff; }
+    .filter { margin-top:12px; }
+    .filter h4 { margin:10px 0 6px; font-size:12px; opacity:.7; text-transform:uppercase; }
+    .pill { display:inline-block; margin:3px 4px 0 0; padding:6px 10px; border-radius:999px; background:#1f1f26; cursor:pointer; user-select:none; }
+    .pill input { margin-right:6px; vertical-align:middle; }
+    .search { margin-top:12px; }
+    .search input { width:100%; padding:10px 12px; border-radius:10px; border:1px solid #2a2a34; background:#0f0f14; color:#fff; }
+    #map { width:100%; height:100%; }
+    .thumb { width:100%; height:140px; object-fit:cover; border-radius:10px; }
+    .popup { width:260px; }
+    .popup h3 { margin:6px 0 2px; font-size:16px; }
+    .popup small { opacity:.7; }
+    .btn { display:inline-block; margin-top:8px; background:var(--red); color:#fff; padding:8px 10px; border-radius:8px; text-decoration:none; font-weight:600; }
+    /* Modal */
+    .modal { position:fixed; inset:0; background:rgba(0,0,0,.8); display:none; align-items:center; justify-content:center; z-index:9999; }
+    .modal.open { display:flex; }
+    .modal-card { width:min(960px, 92vw); background:#000; border-radius:14px; overflow:hidden; }
+    .modal-head { display:flex; justify-content:space-between; align-items:center; padding:12px 14px; color:#fff; background:#111; }
+    .close { cursor:pointer; padding:6px 10px; background:#222; border-radius:8px; }
+    #player { width:100%; aspect-ratio:16/9; background:#000; }
+    a.credit { color:#9fd; text-decoration:none; font-size:12px; }
+    .legend { margin-top:12px; font-size:12px; opacity:.7; }
+  </style>
 </head>
 <body>
-  <main id="widget" role="group" aria-label="ISS overlay">
-    <div class="title" id="title">Connecting…</div>
-    <div class="row">
-      <aside class="left">
-        <div class="flagbox"><img id="flag" alt="" src=""></div>
-        <div class="live">LIVE</div>
-      </aside>
-      <section class="info">
-        <div class="kv" id="grid">
-          <div class="k">UTC :</div><div class="v" id="utcPlaceholder">—</div>
-          <div class="k">Date :</div><div class="v" id="datePlaceholder">—</div>
-          <div class="k">Speed :</div><div class="v">— <span class="unit">km/s</span></div>
-          <div class="k">Elev :</div><div class="v">— <span class="unit">km</span></div>
-        </div>
-      </section>
+<div id="app">
+  <aside id="sidebar">
+    <div id="brand">
+      <img src="https://dummyimage.com/22x22/e21/ffffff.png&text=●" width="22" height="22" alt="Live"/>
+      <div>LIVE <strong>LENS</strong> <span class="tv">TV</span></div>
     </div>
-  </main>
+
+    <div class="search">
+      <input id="q" placeholder="Search city/camera…" />
+    </div>
+
+    <div class="filter">
+      <h4>Categories</h4>
+      <label class="pill"><input type="checkbox" class="cat" value="nature" checked> Nature</label>
+      <label class="pill"><input type="checkbox" class="cat" value="city" checked> City</label>
+      <label class="pill"><input type="checkbox" class="cat" value="wildlife" checked> Wildlife</label>
+      <label class="pill"><input type="checkbox" class="cat" value="traffic" checked> Traffic</label>
+    </div>
+
+    <div class="legend">
+      Tip: zoom in to load more cams. Click a marker → Watch.
+    </div>
+  </aside>
+  <div id="map"></div>
+</div>
+
+<!-- Modal Player -->
+<div class="modal" id="modal">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div id="title"></div>
+      <div class="close" id="close">Close ✕</div>
+    </div>
+    <div id="player"></div>
+  </div>
+</div>
 
 <script>
-/* ==================== CONFIG ==================== */
-const API_BASE   = 'https://iss-live.charlesleahy.workers.dev';
-const REFRESH_MS = 6000;
-const SLIDE_MS   = 7000;
+const map = L.map('map', { minZoom: 2, worldCopyJump: true }).setView([20, 0], 2);
 
-/* Anti-flicker */
-const LAND_CONSEC_HITS  = 2;
-const OCEAN_CONSEC_HITS = 4;
-const STICKY_MS         = 90000;
+// Tiles: swap to MapTiler/Mapbox in prod
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 18,
+  attribution: '&copy; OpenStreetMap'
+}).addTo(map);
 
-/* Ocean photo (static) + tiny SVG fallback */
-const OCEAN_STATIC = "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=192&h=144&q=70";
-const FALLBACK_DATA = "data:image/svg+xml;charset=utf-8,"+encodeURIComponent(
-  `<svg xmlns='http://www.w3.org/2000/svg' width='192' height='144'>
-     <defs><linearGradient id='g' x1='0' y1='0' x2='0' y2='1'>
-       <stop offset='0' stop-color='%230d1b24'/><stop offset='1' stop-color='%23112531'/>
-     </linearGradient></defs><rect fill='url(%23g)' width='100%' height='100%'/></svg>`);
+const cluster = L.markerClusterGroup({ chunkedLoading:true });
+map.addLayer(cluster);
 
-/* Elements */
-const EL = { title: document.getElementById('title'), flag: document.getElementById('flag'), grid: document.getElementById('grid') };
+let allCams = []; // loaded once for demo; switch to API later
 
-/* Utils */
-const fmt = (n,d=2)=> (n==null||!isFinite(n)) ? '—' : Number(n).toFixed(d).replace(/\.00$/,'');
-const nowUTC = ()=> new Date().toISOString().slice(11,19)+' UTC';
-const todayUTC = ()=> new Date().toISOString().slice(0,10);
+// Load initial data
+fetch('cams.json').then(r=>r.json()).then(data => {
+  allCams = data;
+  renderMarkers();
+});
 
-/* JSON fetch with cache-buster (works in vMix/CEF) */
-function getJSON(url, timeout=9000){
-  const bust = url.includes('?') ? `&_t=${Date.now()}` : `?_t=${Date.now()}`;
-  return new Promise((resolve,reject)=>{
-    const x=new XMLHttpRequest(); x.open('GET',url+bust,true); x.responseType='json'; x.timeout=timeout;
-    x.onload=()=> (x.status>=200&&x.status<300)?resolve(x.response??JSON.parse(x.responseText)):reject(new Error('HTTP '+x.status));
-    x.onerror=()=>reject(new Error('Network')); x.ontimeout=()=>reject(new Error('Timeout'));
-    x.setRequestHeader('Cache-Control','no-cache'); x.send();
+function matchesFilters(cam) {
+  const cats = [...document.querySelectorAll('.cat:checked')].map(c=>c.value);
+  const q = document.getElementById('q').value.trim().toLowerCase();
+  const hit = !q || (cam.name + ' ' + cam.location).toLowerCase().includes(q);
+  return cats.includes(cam.category) && hit;
+}
+
+function renderMarkers() {
+  cluster.clearLayers();
+  const inView = allCams.filter(matchesFilters);
+  inView.forEach(cam => {
+    const m = L.marker([cam.lat, cam.lng], { title: cam.name });
+    const html = `
+      <div class="popup">
+        <img class="thumb" src="${cam.thumb || 'https://dummyimage.com/480x270/101010/ffffff&text=Live+Lens+TV'}" alt="">
+        <h3>${cam.name}</h3>
+        <small>${cam.location || ''}</small><br/>
+        ${cam.credits ? `<a class="credit" href="${cam.credit_url||'#'}" target="_blank">Credit: ${cam.credits}</a>` : ''}
+        <div><a class="btn" href="#" onclick='openPlayer(${JSON.stringify(cam)})'>Watch ▶</a></div>
+      </div>`;
+    m.bindPopup(html, { maxWidth: 280 });
+    cluster.addLayer(m);
   });
 }
 
-/* ISS & RG */
-async function fetchISS(){
-  try{
-    const r = await getJSON(`${API_BASE}/iss`);
-    if (r && typeof r.lat==='number' && typeof r.lon==='number') return r;
-    throw new Error('Bad Worker payload');
-  }catch(e){/* next */}
-  try{
-    const w = await getJSON('https://r.jina.ai/http://api.wheretheiss.at/v1/satellites/25544');
-    if (w && isFinite(w.latitude) && isFinite(w.longitude)) {
-      return { lat:+w.latitude, lon:+w.longitude, alt_km:isFinite(w.altitude)?+w.altitude:420,
-               speed_kps:isFinite(w.velocity)?(+w.velocity)/3600:7.66, src:'wheretheiss/jina' };
+document.querySelectorAll('.cat').forEach(cb => cb.addEventListener('change', renderMarkers));
+document.getElementById('q').addEventListener('input', () => {
+  // light debounce
+  clearTimeout(window._t); window._t = setTimeout(renderMarkers, 150);
+});
+
+// Modal player: YouTube iframe or HLS .m3u8
+function openPlayer(cam){
+  document.getElementById('modal').classList.add('open');
+  document.getElementById('title').textContent = cam.name + (cam.location? ' – ' + cam.location : '');
+  const p = document.getElementById('player');
+  p.innerHTML = ''; // reset
+
+  if (/youtube\.com|youtu\.be/.test(cam.url)) {
+    const src = cam.url.replace('watch?v=','embed/').split('&')[0] + '?autoplay=1&mute=0&rel=0';
+    const iframe = document.createElement('iframe');
+    iframe.allow = 'autoplay; encrypted-media';
+    iframe.allowFullscreen = true;
+    iframe.width = '100%'; iframe.height = '100%';
+    iframe.src = src;
+    p.appendChild(iframe);
+  } else if (/\.m3u8($|\?)/.test(cam.url)) {
+    const video = document.createElement('video');
+    video.id = "video"; video.controls = true; video.autoplay = true; video.muted = false; video.playsInline = true;
+    video.style.width = '100%'; video.style.height = '100%';
+    p.appendChild(video);
+    if (Hls.isSupported()) {
+      const hls = new Hls(); hls.loadSource(cam.url); hls.attachMedia(video);
+    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = cam.url;
+    } else {
+      p.innerHTML = '<div style="color:#fff;padding:16px">Your browser cannot play this stream.</div>';
     }
-  }catch(e){/* next */}
-  const o = await getJSON('https://r.jina.ai/http://api.open-notify.org/iss-now.json');
-  const lat = Number(o?.iss_position?.latitude), lon = Number(o?.iss_position?.longitude);
-  if (!isFinite(lat) || !isFinite(lon)) throw new Error('Open-notify payload invalid');
-  return { lat, lon, alt_km:420, speed_kps:7.66, src:'open-notify/jina' };
+  } else {
+    p.innerHTML = `<iframe src="${cam.url}" style="width:100%;height:100%" allowfullscreen></iframe>`;
+  }
 }
-const fetchRG    = (lat,lon)=> getJSON(`${API_BASE}/rg?lat=${lat}&lon=${lon}&lang=en`);
-const fetchFacts = (iso2)=> iso2 ? getJSON(`${API_BASE}/facts?iso2=${iso2}`) : Promise.resolve({});
-
-/* English naming */
-const hasIntl = (typeof Intl!=='undefined' && Intl.DisplayNames);
-const enDisplay = hasIntl ? new Intl.DisplayNames(['en'], {type:'region'}) : null;
-const ISO2_EN = { US:'United States', GB:'United Kingdom', DE:'Germany', FR:'France', ES:'Spain', IT:'Italy', CN:'China',
-  JP:'Japan', IN:'India', BR:'Brazil', RU:'Russia', CA:'Canada', AU:'Australia', MX:'Mexico', KR:'South Korea',
-  TR:'Türkiye', ID:'Indonesia', NL:'Netherlands', SE:'Sweden', NO:'Norway', DK:'Denmark', FI:'Finland',
-  PL:'Poland', UA:'Ukraine', SA:'Saudi Arabia', AE:'United Arab Emirates', TH:'Thailand', VN:'Vietnam',
-  PH:'Philippines', MY:'Malaysia', SG:'Singapore', NZ:'New Zealand', IE:'Ireland', PT:'Portugal', GR:'Greece',
-  CH:'Switzerland', AT:'Austria', BE:'Belgium', CZ:'Czechia', HU:'Hungary', RO:'Romania', BG:'Bulgaria',
-  RS:'Serbia', HR:'Croatia', SI:'Slovenia', SK:'Slovakia', BY:'Belarus', KZ:'Kazakhstan', PK:'Pakistan',
-  BD:'Bangladesh', LK:'Sri Lanka', NP:'Nepal', IR:'Iran', IQ:'Iraq', JO:'Jordan', LB:'Lebanon', IL:'Israel',
-  QA:'Qatar', KW:'Kuwait', OM:'Oman', BH:'Bahrain', YE:'Yemen', MA:'Morocco', DZ:'Algeria', TN:'Tunisia',
-  KE:'Kenya', ET:'Ethiopia', NG:'Nigeria', GH:'Ghana', ZA:'South Africa', AR:'Argentina', CL:'Chile',
-  PE:'Peru', CO:'Colombia' };
-const ASCII_OK = /^[A-Za-z0-9 .,'()\-&]+$/;
-const asciiClean = s => {
-  if(typeof s!=='string' || !s) return '';
-  s = s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^\x20-\x7E]/g,'').trim().replace(/\s+/g,' ');
-  return (ASCII_OK.test(s) && s.length>=2) ? s : '';
+document.getElementById('close').onclick = () => {
+  document.getElementById('modal').classList.remove('open');
+  document.getElementById('player').innerHTML = '';
 };
-const countryNameEN = iso2 => {
-  if(!iso2) return '—';
-  const code=String(iso2).toUpperCase();
-  try{ if(enDisplay){ const n=enDisplay.of(code); if(n) return n; } }catch(_){}
-  return ISO2_EN[code] || code;
-};
-const cityEN   = m => asciiClean(m.city_en||m.locality_en||m.name_en||m.city||m.locality||m.town||m.village||m.municipality||m.name||'');
-const regionEN = m => asciiClean(m.region_en||m.admin1_en||m.state_en||m.region||m.admin1||m.state||'');
-
-/* ---------------- Water body classifier ---------------- */
-/* Bounding boxes for key seas/gulfs (minLon, minLat, maxLon, maxLat). Handles dateline wrap. */
-const SEAS = [
-  ['Mediterranean Sea', [-6, 30, 36, 46]],
-  ['Black Sea', [27, 40, 42.5, 47.5]],
-  ['Red Sea', [33, 12, 44, 30]],
-  ['Arabian Sea', [50, 5, 80, 25]],
-  ['Bay of Bengal', [80, 5, 101, 23]],
-  ['Persian Gulf', [48, 24, 57, 31]],
-  ['Gulf of Oman', [56, 22, 62, 26]],
-  ['Gulf of Aden', [44, 11, 52, 17]],
-  ['South China Sea', [99, 0, 121.5, 23.5]],
-  ['East China Sea', [121.5, 24, 131, 33]],
-  ['Sea of Japan', [127, 34, 143, 50]],
-  ['Philippine Sea', [124, 5, 160, 35]],
-  ['Coral Sea', [146, -26, 170, -10]],
-  ['Tasman Sea', [146, -47, 174, -28]],
-  // Bering Sea wraps dateline -> split in two boxes:
-  ['Bering Sea (W)', [160, 50, 180, 66]],
-  ['Bering Sea (E)', [-180, 50, -160, 66]],
-  ['Gulf of Mexico', [-98, 18, -81, 30]],
-  ['Caribbean Sea', [-88, 10, -60, 20]],
-  ['North Sea', [-4, 51, 9, 60]],
-  ['Baltic Sea', [9, 53, 31, 66]],
-  ['Gulf of Guinea', [-18, -6, 10, 6]],
-];
-function inBox(lat, lon, [minLon, minLat, maxLon, maxLat]){
-  if(minLon<=maxLon){
-    return lon>=minLon && lon<=maxLon && lat>=minLat && lat<=maxLat;
-  }else{ // wrap
-    return ((lon>=minLon && lon<=180) || (lon>=-180 && lon<=maxLon)) && lat>=minLat && lat<=maxLat;
-  }
-}
-function classifySea(lat, lon){
-  for(const [name, box] of SEAS){
-    if(inBox(lat, lon, box)) return name.replace(' (W)','').replace(' (E)','');
-  }
-  return null;
-}
-function classifyMajorOcean(lat, lon){
-  if(lat>=66) return 'Arctic Ocean';
-  if(lat<=-55) return 'Southern Ocean';
-
-  // More careful split to avoid assigning Philippine area to Indian Ocean.
-  if(lon>=145 || lon<=-100) return 'Pacific Ocean';                 // big Pacific swath
-  if(lon>-100 && lon<20)    return 'Atlantic Ocean';
-
-  // 20..145E zone: mostly Indian, except NE quadrant (>=120E & >=0°) which is western Pacific/Asia seas
-  if(lon>=120 && lat>=0)    return 'Pacific Ocean';
-  return 'Indian Ocean';
-}
-function waterBodyName(lat, lon){
-  const sea = classifySea(lat, lon);
-  return sea ? sea : classifyMajorOcean(lat, lon);
-}
-
-/* Ocean visuals */
-function setOceanPicture(){
-  if(EL.flag.dataset.kind!=='ocean' || EL.flag.src!==OCEAN_STATIC){
-    EL.flag.dataset.kind='ocean';
-    EL.flag.onerror = ()=>{ EL.flag.src = FALLBACK_DATA; };
-    EL.flag.src = OCEAN_STATIC; EL.flag.alt='Ocean';
-  }
-}
-function setFlagFromISO(iso2){
-  EL.flag.dataset.kind='flag';
-  EL.flag.onerror = ()=>{ EL.flag.src = FALLBACK_DATA; };
-  EL.flag.src = `https://flagcdn.com/w160/${iso2.toLowerCase()}.png`;
-  EL.flag.alt = 'Flag';
-}
-
-/* Slides */
-let slideIdx=0, slideTimer=null, currentSlides=[];
-function setGridRows(rows){
-  EL.grid.innerHTML='';
-  for(const [k,v,unit] of rows){
-    const kEl=document.createElement('div'); kEl.className='k'; kEl.textContent=k+' :';
-    const vEl=document.createElement('div'); vEl.className='v';
-    vEl.innerHTML = unit ? `${v ?? '—'} <span class="unit">${unit}</span>` : (v ?? '—');
-    EL.grid.appendChild(kEl); EL.grid.appendChild(vEl);
-  }
-}
-const slideStats  = data => ()=> setGridRows([
-  ['UTC',  nowUTC(),  ''],
-  ['Date', todayUTC(),''],
-  ['Speed', fmt(data?.speed_kps,2), 'km/s'],
-  ['Elev',  fmt(data?.alt_km,0),    'km'],
-]);
-const slideCountry = facts => {
-  const strip = s => asciiClean(String(s||'')) || '—';
-  return ()=> setGridRows([
-    ['Capital', strip(facts.capital), ''],
-    ['Density', facts.density ?? '—',''],
-    ['Poverty', facts.poverty ?? '—',''],
-  ]);
-};
-function startSlides(){
-  if(slideTimer){ clearInterval(slideTimer); slideTimer=null; }
-  slideIdx=0; if(!currentSlides.length) return;
-  currentSlides[0]();
-  if(currentSlides.length>1){
-    slideTimer = setInterval(()=>{ slideIdx=(slideIdx+1)%currentSlides.length; currentSlides[slideIdx](); }, SLIDE_MS);
-  }
-}
-/* live UTC tick */
-(function tick(){ const labs=EL.grid.querySelectorAll('.k'); for(let i=0;i<labs.length;i++){
-  if(labs[i].textContent.trim().startsWith('UTC')){ const v=labs[i].nextElementSibling; if(v) v.firstChild ? v.firstChild.nodeValue=nowUTC() : v.textContent=nowUTC(); break; }
-} setTimeout(tick, 1000 - (Date.now()%1000)); })();
-
-/* repaint helper for CEF/vMix */
-function repaint(el){ el.style.display='none'; void el.offsetHeight; el.style.display='block'; }
-
-/* --- Sticky anti-flicker state --- */
-let stableMode='ocean';
-let lastSwitch=0;
-let landHits=0, oceanHits=0;
-let lastAppliedKey='';
-let seq=0;
-
-/* Decide land vs ocean (prefer Worker ocean flag if present, else iso2 presence) */
-const proposeMode = meta => {
-  if(!meta) return 'ocean';
-  if (meta.ocean) return 'ocean';
-  if (!meta.iso2)   return 'ocean';
-  return 'land';
-};
-
-/* Apply sticky logic */
-function shouldSwitch(candidate){
-  const now=Date.now();
-  if(candidate==='land'){
-    landHits++; oceanHits=0;
-    if(stableMode==='ocean'){
-      if(landHits>=LAND_CONSEC_HITS || (now-lastSwitch)>=STICKY_MS) return true;
-    }
-  }else{ // ocean
-    oceanHits++; landHits=0;
-    if(stableMode==='land'){
-      if(oceanHits>=OCEAN_CONSEC_HITS && (now-lastSwitch)>=STICKY_MS) return true;
-    }
-  }
-  return false;
-}
-
-/* Boot placeholders */
-setOceanPicture();
-currentSlides = [ slideStats(null) ];
-startSlides();
-
-/* Main refresh */
-async function refresh(){
-  const mySeq=++seq;
-  try{
-    const iss = await fetchISS();
-
-    // Default ocean view immediately
-    const wbTitle = waterBodyName(iss.lat, iss.lon);
-    if(stableMode==='ocean'){ EL.title.textContent = wbTitle; repaint(EL.title); setOceanPicture(); }
-    currentSlides = [ slideStats(iss) ]; startSlides();
-
-    // Reverse-geocode; let sticky logic decide whether to show land or ocean
-    fetchRG(iss.lat, iss.lon).then(async(meta)=>{
-      if(mySeq!==seq) return;
-
-      const candidate = proposeMode(meta);
-      const switchNow = shouldSwitch(candidate);
-
-      if(switchNow){
-        stableMode = candidate;
-        lastSwitch = Date.now();
-        lastAppliedKey = '';
-      }
-
-      let title, key;
-      if(stableMode==='land' && meta && meta.iso2){
-        const country = countryNameEN(meta.iso2);
-        const city    = cityEN(meta);
-        const region  = regionEN(meta);
-        title = city ? `${city}, ${country}` : (region ? `${region}, ${country}` : country);
-        key = `land:${meta.iso2}:${title}`;
-
-        if(key!==lastAppliedKey){
-          EL.title.textContent = title; repaint(EL.title);
-          setFlagFromISO(meta.iso2);
-
-          let facts={capital:'—', density:'—', poverty:'—'};
-          currentSlides = [ slideStats(iss), slideCountry(facts) ];
-          startSlides();
-
-          fetchFacts(meta.iso2).then(f=>{
-            if(mySeq!==seq) return;
-            if(f && typeof f==='object'){
-              facts = Object.assign(facts,f);
-              currentSlides = [ slideStats(iss), slideCountry(facts) ];
-              startSlides();
-            }
-          }).catch(()=>{ /* keep placeholders */ });
-          lastAppliedKey = key;
-        }else{
-          if(currentSlides.length){ currentSlides[0] = slideStats(iss); if(slideIdx===0) currentSlides[0](); }
-        }
-      }else{
-        const t = waterBodyName(iss.lat, iss.lon);
-        key = `ocean:${t}`;
-        if(key!==lastAppliedKey){
-          EL.title.textContent = t; repaint(EL.title);
-          setOceanPicture();
-          currentSlides = [ slideStats(iss) ];
-          startSlides();
-          lastAppliedKey = key;
-        }else{
-          if(currentSlides.length){ currentSlides[0] = slideStats(iss); if(slideIdx===0) currentSlides[0](); }
-        }
-      }
-    }).catch(()=>{/* ignore RG failure; ocean stats still show */});
-
-  }catch(err){
-    console.warn('ISS fetch failed', err);
-    if(EL.title.textContent==='Connecting…'){
-      EL.title.textContent='Waiting for data…'; repaint(EL.title);
-      setOceanPicture(); currentSlides=[ slideStats(null) ]; startSlides();
-    }
-  }
-}
-
-/* Run & repeat */
-refresh();
-setInterval(refresh, REFRESH_MS);
 </script>
 </body>
 </html>
