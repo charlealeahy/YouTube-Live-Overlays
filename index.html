@@ -1,172 +1,26 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html>
 <head>
-  <meta charset="utf-8" />
-  <title>LiveLens – World Cams Map</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <!-- Leaflet -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <!-- Marker Cluster -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
-  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
-  <!-- HLS for .m3u8 playback -->
-  <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
-  <style>
-    :root { --red:#e21; --bg:#0b0b0e; --panel:#141419; --text:#fff; }
-    html,body { height:100%; margin:0; font-family:system-ui, Arial, sans-serif; background:#000; }
-    #app { display:grid; grid-template-columns: 320px 1fr; height:100%; }
-    #sidebar { background:var(--panel); color:var(--text); padding:14px; overflow:auto; }
-    #brand { display:flex; align-items:center; gap:8px; font-weight:800; letter-spacing:.3px; }
-    #brand .tv { background:var(--red); padding:2px 6px; border-radius:6px; color:#fff; }
-    .filter { margin-top:12px; }
-    .filter h4 { margin:10px 0 6px; font-size:12px; opacity:.7; text-transform:uppercase; }
-    .pill { display:inline-block; margin:3px 4px 0 0; padding:6px 10px; border-radius:999px; background:#1f1f26; cursor:pointer; user-select:none; }
-    .pill input { margin-right:6px; vertical-align:middle; }
-    .search { margin-top:12px; }
-    .search input { width:100%; padding:10px 12px; border-radius:10px; border:1px solid #2a2a34; background:#0f0f14; color:#fff; }
-    #map { width:100%; height:100%; }
-    .thumb { width:100%; height:140px; object-fit:cover; border-radius:10px; }
-    .popup { width:260px; }
-    .popup h3 { margin:6px 0 2px; font-size:16px; }
-    .popup small { opacity:.7; }
-    .btn { display:inline-block; margin-top:8px; background:var(--red); color:#fff; padding:8px 10px; border-radius:8px; text-decoration:none; font-weight:600; }
-    /* Modal */
-    .modal { position:fixed; inset:0; background:rgba(0,0,0,.8); display:none; align-items:center; justify-content:center; z-index:9999; }
-    .modal.open { display:flex; }
-    .modal-card { width:min(960px, 92vw); background:#000; border-radius:14px; overflow:hidden; }
-    .modal-head { display:flex; justify-content:space-between; align-items:center; padding:12px 14px; color:#fff; background:#111; }
-    .close { cursor:pointer; padding:6px 10px; background:#222; border-radius:8px; }
-    #player { width:100%; aspect-ratio:16/9; background:#000; }
-    a.credit { color:#9fd; text-decoration:none; font-size:12px; }
-    .legend { margin-top:12px; font-size:12px; opacity:.7; }
-  </style>
+    <title>Google Maps Test</title>
 </head>
 <body>
-<div id="app">
-  <aside id="sidebar">
-    <div id="brand">
-      <img src="https://dummyimage.com/22x22/e21/ffffff.png&text=●" width="22" height="22" alt="Live"/>
-      <div>LIVE <strong>LENS</strong> <span class="tv">TV</span></div>
-    </div>
-
-    <div class="search">
-      <input id="q" placeholder="Search city/camera…" />
-    </div>
-
-    <div class="filter">
-      <h4>Categories</h4>
-      <label class="pill"><input type="checkbox" class="cat" value="nature" checked> Nature</label>
-      <label class="pill"><input type="checkbox" class="cat" value="city" checked> City</label>
-      <label class="pill"><input type="checkbox" class="cat" value="wildlife" checked> Wildlife</label>
-      <label class="pill"><input type="checkbox" class="cat" value="traffic" checked> Traffic</label>
-    </div>
-
-    <div class="legend">
-      Tip: zoom in to load more cams. Click a marker → Watch.
-    </div>
-  </aside>
-  <div id="map"></div>
-</div>
-
-<!-- Modal Player -->
-<div class="modal" id="modal">
-  <div class="modal-card">
-    <div class="modal-head">
-      <div id="title"></div>
-      <div class="close" id="close">Close ✕</div>
-    </div>
-    <div id="player"></div>
-  </div>
-</div>
-
-<script>
-const map = L.map('map', { minZoom: 2, worldCopyJump: true }).setView([20, 0], 2);
-
-// Tiles: swap to MapTiler/Mapbox in prod
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom: 18,
-  attribution: '&copy; OpenStreetMap'
-}).addTo(map);
-
-const cluster = L.markerClusterGroup({ chunkedLoading:true });
-map.addLayer(cluster);
-
-let allCams = []; // loaded once for demo; switch to API later
-
-// Load initial data
-fetch('cams.json').then(r=>r.json()).then(data => {
-  allCams = data;
-  renderMarkers();
-});
-
-function matchesFilters(cam) {
-  const cats = [...document.querySelectorAll('.cat:checked')].map(c=>c.value);
-  const q = document.getElementById('q').value.trim().toLowerCase();
-  const hit = !q || (cam.name + ' ' + cam.location).toLowerCase().includes(q);
-  return cats.includes(cam.category) && hit;
-}
-
-function renderMarkers() {
-  cluster.clearLayers();
-  const inView = allCams.filter(matchesFilters);
-  inView.forEach(cam => {
-    const m = L.marker([cam.lat, cam.lng], { title: cam.name });
-    const html = `
-      <div class="popup">
-        <img class="thumb" src="${cam.thumb || 'https://dummyimage.com/480x270/101010/ffffff&text=Live+Lens+TV'}" alt="">
-        <h3>${cam.name}</h3>
-        <small>${cam.location || ''}</small><br/>
-        ${cam.credits ? `<a class="credit" href="${cam.credit_url||'#'}" target="_blank">Credit: ${cam.credits}</a>` : ''}
-        <div><a class="btn" href="#" onclick='openPlayer(${JSON.stringify(cam)})'>Watch ▶</a></div>
-      </div>`;
-    m.bindPopup(html, { maxWidth: 280 });
-    cluster.addLayer(m);
-  });
-}
-
-document.querySelectorAll('.cat').forEach(cb => cb.addEventListener('change', renderMarkers));
-document.getElementById('q').addEventListener('input', () => {
-  // light debounce
-  clearTimeout(window._t); window._t = setTimeout(renderMarkers, 150);
-});
-
-// Modal player: YouTube iframe or HLS .m3u8
-function openPlayer(cam){
-  document.getElementById('modal').classList.add('open');
-  document.getElementById('title').textContent = cam.name + (cam.location? ' – ' + cam.location : '');
-  const p = document.getElementById('player');
-  p.innerHTML = ''; // reset
-
-  if (/youtube\.com|youtu\.be/.test(cam.url)) {
-    const src = cam.url.replace('watch?v=','embed/').split('&')[0] + '?autoplay=1&mute=0&rel=0';
-    const iframe = document.createElement('iframe');
-    iframe.allow = 'autoplay; encrypted-media';
-    iframe.allowFullscreen = true;
-    iframe.width = '100%'; iframe.height = '100%';
-    iframe.src = src;
-    p.appendChild(iframe);
-  } else if (/\.m3u8($|\?)/.test(cam.url)) {
-    const video = document.createElement('video');
-    video.id = "video"; video.controls = true; video.autoplay = true; video.muted = false; video.playsInline = true;
-    video.style.width = '100%'; video.style.height = '100%';
-    p.appendChild(video);
-    if (Hls.isSupported()) {
-      const hls = new Hls(); hls.loadSource(cam.url); hls.attachMedia(video);
-    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      video.src = cam.url;
-    } else {
-      p.innerHTML = '<div style="color:#fff;padding:16px">Your browser cannot play this stream.</div>';
-    }
-  } else {
-    p.innerHTML = `<iframe src="${cam.url}" style="width:100%;height:100%" allowfullscreen></iframe>`;
-  }
-}
-document.getElementById('close').onclick = () => {
-  document.getElementById('modal').classList.remove('open');
-  document.getElementById('player').innerHTML = '';
-};
-</script>
+    <div id="map" style="height: 400px; width: 100%;"></div>
+    
+    <script>
+        function initMap() {
+            var location = {lat: 40.7128, lng: -74.0060}; // New York
+            var map = new google.maps.Map(document.getElementById('map'), {
+                zoom: 10,
+                center: location
+            });
+            var marker = new google.maps.Marker({
+                position: location,
+                map: map
+            });
+        }
+    </script>
+    <script async defer 
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBE2v4f5Zgoigx6dxPWZwu0KPPxR_6dxeo&callback=initMap">
+    </script>
 </body>
 </html>
