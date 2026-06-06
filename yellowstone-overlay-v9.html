@@ -20,7 +20,7 @@ body { background: transparent; font-family: 'Inter', sans-serif; width: 1920px;
 #bottom-bar::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent 0%, rgba(76,175,80,0.35) 20%, rgba(139,195,74,0.55) 50%, rgba(76,175,80,0.35) 80%, transparent 100%); }
 #bar-inner { display: flex; align-items: stretch; padding: 20px 28px 18px; gap: 0; min-height: 130px; }
 #facts-panel { display: flex; flex-direction: column; justify-content: center; min-width: 380px; max-width: 380px; margin-right: 28px; padding-right: 28px; border-right: 1px solid rgba(139,195,74,0.2); }
-#fact-text { font-size: 19px; font-weight: 700; color: #ff9800; line-height: 1.5; transition: opacity 0.8s ease; }
+#fact-text { font-size: 24px; font-weight: 700; color: #ff9800; line-height: 1.5; transition: opacity 0.8s ease; }
 #fact-text.fade { opacity: 0; }
 #stats-middle { display: flex; align-items: center; flex: 1; gap: 0; }
 .stat-block { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 0 16px; border-right: 1px solid rgba(255,255,255,0.07); flex: 1; }
@@ -175,16 +175,16 @@ fetchSeismic();
 setInterval(fetchSeismic, 5*60*1000);
  
 const facts = [
-  "Old Faithful has erupted more reliably than any other large geyser on Earth since its discovery in 1870.",
-  "Yellowstone sits atop one of the world's largest supervolcanoes. Its magma chamber spans 55 x 18 miles beneath the surface.",
-  "Old Faithful discharges up to 8,400 gallons of boiling water per eruption at temperatures reaching 204°F.",
-  "Yellowstone is home to more than half of all the world's geysers - over 500 in total.",
-  "The park covers 3,472 square miles across Wyoming, Montana and Idaho - larger than Rhode Island and Delaware combined.",
-  "Yellowstone's supervolcano last erupted 640,000 years ago - 1,000 times more powerful than Mount St. Helens.",
-  "The park has the largest concentration of mammals in the lower 48 states, including bison, grizzly bears and grey wolves.",
-  "Scientists can predict Old Faithful's next eruption within a 10-minute window based on the previous eruption's duration.",
-  "Beneath Yellowstone, a massive plume of molten rock rises from deep within the Earth's mantle.",
-  "Watch live cameras from 90+ countries free at EarthLive.TV - no sign-up required."
+  "💧 The water erupting from Old Faithful right now fell as rain roughly 500 years ago.",
+  "🌋 Yellowstone last erupted 640,000 years ago - it was 1,000x more powerful than St. Helens.",
+  "💧 Old Faithful discharges up to 8,400 gallons of boiling water per eruption reaching temperatures of 204°F.",
+  "🌍 Yellowstone is home to more than half of all the world's geysers - over 500 in total.",
+  "🐺 Wolves were once wiped out of Yellowstone. In 1995, 41 wolves were reintroduced. Today there's 120+ (2024)",
+  "🦬 Every wild species that was here when Columbus arrived in 1492 still lives in Yellowstone today.",
+  "🦬 Yellowstone has the largest concentration of mammals in the lower 48 states, including bison, grizzlies and wolves.",
+  "⚡ Yellowstone experiences up to 3,000 earthquakes every year. Most are too small to feel.",
+  "🧬 A microbe discovered in Yellowstone's hot springs made modern DNA fingerprinting possible.",
+  "📰 In 1869, a magazine rejected an article about Yellowstone's geysers, saying "we do not print fiction."
 ];
 let factIndex = 0;
 const factEl = document.getElementById('fact-text');
@@ -193,7 +193,7 @@ function showNextFact() {
   setTimeout(() => { factIndex=(factIndex+1)%facts.length; factEl.textContent=facts[factIndex]; factEl.classList.remove('fade'); }, 800);
 }
 factEl.textContent = facts[0];
-setInterval(showNextFact, 8000);
+setInterval(showNextFact, 15000);
 </script>
 </body>
 </html>
