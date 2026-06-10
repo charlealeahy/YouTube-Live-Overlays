@@ -98,9 +98,8 @@ setInterval(function() {
   if (!video || isNighttime() || !hls) { lastVideoTime = -1; return; }
   const livePos = hls.liveSyncPosition;
   if (video.currentTime === lastVideoTime) {
-    // Stalled for 30s: snap to live edge, force reload + play
-    if (livePos) video.currentTime = livePos;
-    if (hls.startLoad) hls.startLoad();
+    // Stalled for 30s: rebuild the entire player -> fresh server session at the true live edge
+    initPlayer();
     video.play().catch(function(){});
   } else if (livePos && (livePos - video.currentTime) > 30) {
     // Drifted more than 30s behind live: jump back to the edge
@@ -108,6 +107,12 @@ setInterval(function() {
   }
   lastVideoTime = video.currentTime;
 }, 30000);
+
+// Proactive session refresh: rebuild the player every 30 min so no server
+// session ever lives long enough to go stale (origin is mid network-upgrade)
+setInterval(function() {
+  if (!isNighttime()) initPlayer();
+}, 1800000);
 </script>
 
 <div id="top-bar">
