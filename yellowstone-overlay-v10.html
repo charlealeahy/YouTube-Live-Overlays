@@ -66,6 +66,38 @@ const video = document.getElementById('stream-video');
 const streamUrl = 'https://cs7.pixelcaster.com/nps/faithful.stream/playlist_dvr.m3u8';
 let hls;
 
+let outageDiv = null;
+let outageActive = false;
+let rebuildTimer = null;
+
+function scheduleRebuild(ms) {
+  if (rebuildTimer) return;
+  rebuildTimer = setTimeout(function() { rebuildTimer = null; initPlayer(); }, ms);
+}
+
+function setOutage(on) {
+  if (on && isNighttime()) on = false; // night mode has its own display
+  outageActive = on;
+  if (on) {
+    if (!outageDiv) {
+      outageDiv = document.createElement('div');
+      outageDiv.id = 'outage-message';
+      outageDiv.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:radial-gradient(ellipse at center,#16281a 0%,#080f0a 100%);display:flex;align-items:center;justify-content:center;z-index:9999;';
+      outageDiv.innerHTML = '<div style="text-align:center;font-family:Arial,Helvetica,sans-serif;color:#fff;max-width:1100px;"><div style="font-size:52px;margin-bottom:20px;">📡</div><div style="font-size:38px;font-weight:bold;color:#ffcc00;margin-bottom:16px;">Live Feed Briefly Unavailable</div><div style="font-size:23px;line-height:1.5;opacity:.88;">The National Park Service is upgrading their webcam network.<br>The live view of Old Faithful will return automatically &mdash; stay tuned.</div></div>';
+      document.body.appendChild(outageDiv);
+    }
+    outageDiv.style.display = 'flex';
+    video.style.display = 'none';
+    try { video.pause(); } catch (e) {}
+  } else if (outageDiv) {
+    outageDiv.style.display = 'none';
+    if (!isNighttime()) {
+      video.style.display = 'block';
+      video.play().catch(function(){});
+    }
+  }
+}
+
 function initPlayer() {
   if (hls) { try { hls.destroy(); } catch (e) {} hls = null; }
   if (Hls.isSupported()) {
@@ -75,6 +107,16 @@ function initPlayer() {
     });
     hls.loadSource(streamUrl);
     hls.attachMedia(video);
+    hls.on(Hls.Events.LEVEL_LOADED, function(event, data) {
+      var isLive = !!(data && data.details && data.details.live);
+      if (!isLive) {
+        // Origin is serving a CLOSED recording (#EXT-X-ENDLIST) - do not broadcast the past
+        setOutage(true);
+        scheduleRebuild(45000);
+      } else {
+        setOutage(false);
+      }
+    });
     hls.on(Hls.Events.ERROR, function(event, data) {
       if (data && data.fatal) {
         if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
@@ -96,6 +138,12 @@ initPlayer();
 let lastVideoTime = -1;
 setInterval(function() {
   if (!video || isNighttime() || !hls) { lastVideoTime = -1; return; }
+  if (outageActive) {
+    // Holding card up: keep video hidden, let the rebuild timer do the retrying
+    video.style.display = 'none';
+    lastVideoTime = -1;
+    return;
+  }
   const livePos = hls.liveSyncPosition;
   if (video.currentTime === lastVideoTime) {
     // Stalled for 30s: rebuild the entire player -> fresh server session at the true live edge
