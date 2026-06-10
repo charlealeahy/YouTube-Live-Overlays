@@ -111,7 +111,7 @@ if (Hls.isSupported()) {
 
 <script>
 // Set to true to test nighttime mode in browser — set back to false before pushing to v10
-const FORCE_NIGHT = false;
+const FORCE_NIGHT = true;
 
 function isNighttime() {
   if (FORCE_NIGHT) return true;
@@ -144,6 +144,7 @@ function updateNightCountdown() {
 function setNightMode(night) {
   document.getElementById('night-message').classList.toggle('visible', night);
   document.getElementById('bottom-bar').style.display = night ? 'none' : 'block';
+  document.getElementById('stream-video').style.display = night ? 'none' : 'block';
 }
 
 setInterval(() => setNightMode(isNighttime()), 60000);
@@ -323,8 +324,4 @@ function showNextFact() {
     factEl.classList.remove('fade');
   }, 800);
 }
-factEl.textContent = currentFacts[0];
-setInterval(showNextFact, 15000);
-</script>
-</body>
-</html>
+factEl.textCont
