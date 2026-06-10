@@ -121,28 +121,17 @@ function isNighttime() {
   return h >= 22 || h < 5;
 }
 
-// Countdown to 5am MDT from whenever night started (10pm MDT)
-// Total night = 420 mins. Work out how far through we are.
+// Countdown to 5am MDT - calculate directly from current time
 function getNightCountdown() {
   const now = new Date();
   const mdt = new Date(now.toLocaleString('en-US', { timeZone: 'America/Denver' }));
-  const h = mdt.getHours();
-  const m = mdt.getMinutes();
-  const s = mdt.getSeconds();
-
-  // Minutes past 10pm, or minutes past midnight into early morning
-  let minsPast;
-  if (h >= 22) {
-    minsPast = (h - 22) * 60 + m;
-  } else {
-    // h is 0-4
-    minsPast = (h + 2) * 60 + m; // 2hrs past midnight = 2hrs after 10pm
+  const fiveAM = new Date(mdt);
+  fiveAM.setHours(5, 0, 0, 0);
+  if (mdt.getHours() >= 22) {
+    fiveAM.setDate(fiveAM.getDate() + 1);
   }
-
-  const totalSec = 420 * 60; // 7 hours in seconds
-  const elapsedSec = minsPast * 60 + s;
-  const remainSec = Math.max(0, totalSec - elapsedSec);
-  return remainSec;
+  const remainMs = fiveAM - mdt;
+  return Math.max(0, Math.floor(remainMs / 1000));
 }
 
 function updateNightCountdown() {
