@@ -34,8 +34,8 @@ body { background: transparent; font-family: 'Inter', sans-serif; width: 1920px;
 #eruption-countdown { font-family: 'Rajdhani', sans-serif; font-size: 56px; font-weight: 700; color: #ffcc02; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: 3px; text-shadow: 0 0 24px rgba(255,204,2,0.4); width: 140px; text-align: center; }
 #last-eruption { font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 6px; }
 #accent-line { height: 3px; background: linear-gradient(90deg, #1b5e20 0%, #4caf50 25%, #8bc34a 50%, #4caf50 75%, #1b5e20 100%); }
-#stream-video { position: fixed; top: 0; left: 0; width: 1920px; height: 1080px; object-fit: cover; z-index: -1; }
-
+#stream-video { position: fixed; top: 0; left: 0; width: 1920px; height: 1080px; object-fit: cover; z-index: -1; display: none; }
+ 
 /* NIGHTTIME MESSAGE */
 #night-message {
   display: none;
@@ -73,7 +73,7 @@ if (Hls.isSupported()) {
   video.src = streamUrl;
 }
 </script>
-
+ 
 <div id="top-bar">
   <div id="branding"><div id="live-badge"><span class="live-dot"></span>LIVE</div></div>
   <div id="top-right">
@@ -81,11 +81,11 @@ if (Hls.isSupported()) {
     <div id="clock">--:--:-- MDT</div>
   </div>
 </div>
-
+ 
 <div id="night-message">
   <div id="night-line1">🌙 Currently Night at Old Faithful &nbsp;·&nbsp; Live Camera Resumes In <span id="night-countdown">--:--</span></div>
 </div>
-
+ 
 <div id="bottom-bar">
   <div id="bar-inner">
     <div id="facts-panel"><div id="fact-text">Loading...</div></div>
@@ -108,11 +108,11 @@ if (Hls.isSupported()) {
   </div>
   <div id="accent-line"></div>
 </div>
-
+ 
 <script>
 // Set to true to test nighttime mode in browser — set back to false before pushing to v10
 const FORCE_NIGHT = true;
-
+ 
 function isNighttime() {
   if (FORCE_NIGHT) return true;
   const now = new Date();
@@ -120,7 +120,7 @@ function isNighttime() {
   const h = mdt.getHours();
   return h >= 22 || h < 5;
 }
-
+ 
 // Countdown to 5am MDT - calculate directly from current time
 function getNightCountdown() {
   const now = new Date();
@@ -133,25 +133,27 @@ function getNightCountdown() {
   const remainMs = fiveAM - mdt;
   return Math.max(0, Math.floor(remainMs / 1000));
 }
-
+ 
 function updateNightCountdown() {
   if (!isNighttime()) return;
   const remainSec = getNightCountdown();
   const mins = Math.ceil(remainSec / 60);
   document.getElementById('night-countdown').textContent = mins + ' mins';
 }
-
+ 
 function setNightMode(night) {
   document.getElementById('night-message').classList.toggle('visible', night);
   document.getElementById('bottom-bar').style.display = night ? 'none' : 'block';
   document.getElementById('stream-video').style.display = night ? 'none' : 'block';
 }
-
+// Run immediately on page load before anything renders
+setNightMode(isNighttime());
+ 
 setInterval(() => setNightMode(isNighttime()), 60000);
 setInterval(updateNightCountdown, 1000);
 setNightMode(isNighttime());
 updateNightCountdown();
-
+ 
 // ─── CLOCK ───
 function updateClock() {
   const now = new Date();
@@ -165,7 +167,7 @@ function updateClock() {
 }
 setInterval(updateClock, 1000);
 updateClock();
-
+ 
 // ─── ERUPTION DATA ───
 let nextEruptionMs = null;
 async function fetchEruptionData() {
@@ -193,7 +195,7 @@ async function fetchEruptionData() {
     }
   } catch(e) { if (!nextEruptionMs) { nextEruptionMs = Date.now()+(45*60*1000); document.getElementById('last-eruption').textContent='Awaiting data...'; } }
 }
-
+ 
 function updateCountdown() {
   if (!nextEruptionMs) return;
   const diff = nextEruptionMs - Date.now();
@@ -203,11 +205,11 @@ function updateCountdown() {
   el.textContent = String(Math.floor(totalSec/60)).padStart(2,'0')+':'+String(totalSec%60).padStart(2,'0');
   el.style.color = diff < 5*60*1000 ? '#ff6b6b' : '#ffcc02';
 }
-
+ 
 fetchEruptionData();
 setInterval(fetchEruptionData, 5*60*1000);
 setInterval(updateCountdown, 1000);
-
+ 
 // ─── WEATHER ───
 async function fetchWeather() {
   try {
@@ -222,7 +224,7 @@ async function fetchWeather() {
 }
 fetchWeather();
 setInterval(fetchWeather, 10*60*1000);
-
+ 
 // ─── SEISMIC ───
 async function fetchSeismic() {
   try {
@@ -247,7 +249,7 @@ async function fetchSeismic() {
 }
 fetchSeismic();
 setInterval(fetchSeismic, 5*60*1000);
-
+ 
 // ─── FACTS ───
 const dayFacts = [
   "The water erupting from Old Faithful right now fell as rain roughly 500 years ago.",
@@ -291,7 +293,7 @@ const dayFacts = [
   "Yellowstone has a legal Zone of Death where crime can't be prosecuted.",
   "Watch live cameras from 90+ countries free at EarthLive.TV - no sign-up!"
 ];
-
+ 
 const nightFacts = [
   "Old Faithful still erupts through the night - every 60 to 110 minutes, without fail.",
   "Yellowstone is one of the darkest places in the continental US. The Milky Way is visible to the naked eye.",
@@ -310,11 +312,11 @@ const nightFacts = [
   "Bald eagles roost in Yellowstone's cottonwood trees overnight and return to hunt at first light.",
   "Watch live cameras from 90+ countries free at EarthLive.TV - no sign-up required."
 ];
-
+ 
 let factIndex = 0;
 let currentFacts = isNighttime() ? nightFacts : dayFacts;
 const factEl = document.getElementById('fact-text');
-
+ 
 function showNextFact() {
   factEl.classList.add('fade');
   setTimeout(() => {
@@ -324,4 +326,8 @@ function showNextFact() {
     factEl.classList.remove('fade');
   }, 800);
 }
-factEl.textCont
+factEl.textContent = currentFacts[0];
+setInterval(showNextFact, 15000);
+</script>
+</body>
+</html>
