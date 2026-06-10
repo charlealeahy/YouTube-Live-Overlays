@@ -137,13 +137,13 @@ function getNightCountdown() {
 function updateNightCountdown() {
   if (!isNighttime()) return;
   const remainSec = getNightCountdown();
-  const hh = String(Math.floor(remainSec / 3600)).padStart(2,'0');
-  const mm = String(Math.floor((remainSec % 3600) / 60)).padStart(2,'0');
-  document.getElementById('night-countdown').textContent = hh+':'+mm;
+  const mins = Math.ceil(remainSec / 60);
+  document.getElementById('night-countdown').textContent = mins + ' mins';
 }
 
 function setNightMode(night) {
   document.getElementById('night-message').classList.toggle('visible', night);
+  document.getElementById('bottom-bar').style.display = night ? 'none' : 'block';
 }
 
 setInterval(() => setNightMode(isNighttime()), 60000);
