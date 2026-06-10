@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Yellowstone Overlay</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: transparent; font-family: 'Inter', sans-serif; width: 1920px; height: 1090px; overflow: hidden; position: relative; }
+#top-bar { position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; padding: 16px 32px; background: linear-gradient(to bottom, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.3) 75%, transparent 100%); }
+#branding { display: flex; align-items: center; gap: 16px; }
+#live-badge { display: flex; align-items: center; gap: 8px; background: #c62828; color: #fff; font-family: 'Rajdhani', sans-serif; font-size: 15px; font-weight: 700; padding: 6px 14px 5px; border-radius: 4px; letter-spacing: 2.5px; box-shadow: 0 0 20px rgba(198,40,40,0.55); }
+.live-dot { width: 8px; height: 8px; border-radius: 50%; background: #fff; animation: blink 1.4s ease-in-out infinite; flex-shrink: 0; }
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.15; } }
+#top-right { display: flex; align-items: center; gap: 16px; }
+#location-pill { display: flex; align-items: center; gap: 10px; background: rgba(0,0,0,0.38); border: 1px solid rgba(255,255,255,0.13); border-radius: 30px; padding: 8px 20px; font-size: 14px; font-weight: 500; color: rgba(255,255,255,0.82); backdrop-filter: blur(8px); }
+.loc-dot { width: 7px; height: 7px; border-radius: 50%; background: #e53935; box-shadow: 0 0 8px #e53935; flex-shrink: 0; }
+#clock { font-family: 'Rajdhani', sans-serif; font-size: 19px; font-weight: 600; color: rgba(255,255,255,0.92); background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 7px 16px; backdrop-filter: blur(8px); letter-spacing: 0.5px; }
+#bottom-bar { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, rgba(8,24,12,0.97) 0%, rgba(12,35,16,0.93) 55%, rgba(8,20,10,0.55) 82%, transparent 100%); }
+#bottom-bar::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent 0%, rgba(76,175,80,0.35) 20%, rgba(139,195,74,0.55) 50%, rgba(76,175,80,0.35) 80%, transparent 100%); }
+#bar-inner { display: flex; align-items: stretch; padding: 20px 28px 18px; gap: 0; min-height: 130px; }
+#facts-panel { display: flex; flex-direction: column; justify-content: center; min-width: 380px; max-width: 380px; margin-right: 28px; padding-right: 28px; border-right: 1px solid rgba(139,195,74,0.2); }
+#fact-text { font-size: 24px; font-weight: 700; color: #ff9800; line-height: 1.5; transition: opacity 0.8s ease; }
+#fact-text.fade { opacity: 0; }
+#stats-middle { display: flex; align-items: center; flex: 1; gap: 0; }
+.stat-block { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 0 16px; border-right: 1px solid rgba(255,255,255,0.07); flex: 1; }
+.stat-block:last-child { border-right: none; }
+.stat-label { font-size: 11px; font-weight: 700; color: rgba(139,195,74,0.8); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; white-space: nowrap; }
+.stat-value { font-family: 'Rajdhani', sans-serif; font-size: 26px; font-weight: 700; color: #e8f5e9; line-height: 1; text-align: center; white-space: nowrap; }
+.seismic-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #4caf50; margin-right: 6px; vertical-align: middle; box-shadow: 0 0 8px #4caf50; }
+#eruption-block { display: flex; flex-direction: column; align-items: center; justify-content: center; background: linear-gradient(135deg, rgba(229,57,53,0.22), rgba(180,30,30,0.1)); border: 1px solid rgba(229,57,53,0.45); border-radius: 10px; padding: 14px 28px; margin-left: 28px; min-width: 190px; position: relative; overflow: hidden; flex-shrink: 0; }
+#eruption-block::after { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, #e53935, transparent); }
+#eruption-label { font-size: 11px; font-weight: 700; color: #ef9a9a; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px; }
+#eruption-countdown { font-family: 'Rajdhani', sans-serif; font-size: 56px; font-weight: 700; color: #ffcc02; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: 3px; text-shadow: 0 0 24px rgba(255,204,2,0.4); width: 140px; text-align: center; }
+#last-eruption { font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 6px; }
+#accent-line { height: 3px; background: linear-gradient(90deg, #1b5e20 0%, #4caf50 25%, #8bc34a 50%, #4caf50 75%, #1b5e20 100%); }
+#stream-video { position: fixed; top: 0; left: 0; width: 1920px; height: 1080px; object-fit: cover; z-index: -1; }
+
+/* NIGHTTIME MESSAGE */
+#night-message {
+  display: none;
+  position: absolute;
+  bottom: 220px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 600;
+  pointer-events: none;
+}
+#night-message.visible { display: block; }
+#night-line1 {
+  font-size: 42px;
+  color: #e07820;
+  text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff;
+  letter-spacing: 1px;
+}
+#night-line2 { display: none; }
+</style>
+</head>
+<body>
+<video id="stream-video" autoplay muted playsinline></video>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+<script>
+const video = document.getElementById('stream-video');
+const streamUrl = 'https://cs7.pixelcaster.com/nps/faithful.stream/playlist_dvr.m3u8';
+let hls;
+if (Hls.isSupported()) {
+  hls = new Hls();
+  hls.loadSource(streamUrl);
+  hls.attachMedia(video);
+} else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+  video.src = streamUrl;
+}
+</script>
+
+<div id="top-bar">
+  <div id="branding"><div id="live-badge"><span class="live-dot"></span>LIVE</div></div>
+  <div id="top-right">
+    <div id="location-pill"><span class="loc-dot"></span>Old Faithful &nbsp;·&nbsp; Upper Geyser Basin &nbsp;·&nbsp; Yellowstone National Park &nbsp;·&nbsp; Wyoming, USA</div>
+    <div id="clock">--:--:-- MDT</div>
+  </div>
+</div>
+
+<div id="night-message">
+  <div id="night-line1">🌙 Currently Night at Old Faithful &nbsp;·&nbsp; Live Camera Resumes In <span id="night-countdown">--:--</span></div>
+</div>
+
+<div id="bottom-bar">
+  <div id="bar-inner">
+    <div id="facts-panel"><div id="fact-text">Loading...</div></div>
+    <div id="stats-middle">
+      <div class="stat-block"><div class="stat-label"><span class="seismic-dot" id="seismic-dot"></span>Seismic</div><div class="stat-value" id="seismic-status">--</div></div>
+      <div class="stat-block"><div class="stat-label">🌍 Last Quake</div><div class="stat-value" id="last-quake">--</div></div>
+      <div class="stat-block"><div class="stat-label">🌡️ Temp</div><div class="stat-value" id="temperature">--°F</div></div>
+      <div class="stat-block"><div class="stat-label">💨 Wind</div><div class="stat-value" id="wind">-- mph</div></div>
+      <div class="stat-block"><div class="stat-label">💧 Humidity</div><div class="stat-value" id="humidity">--%</div></div>
+      <div class="stat-block"><div class="stat-label">☀️ UV Index</div><div class="stat-value" id="uv">--</div></div>
+      <div class="stat-block"><div class="stat-label">🔥 Per Day</div><div class="stat-value">~20</div></div>
+      <div class="stat-block"><div class="stat-label">📏 Max Height</div><div class="stat-value">184 ft</div></div>
+      <div class="stat-block"><div class="stat-label">⛰️ Elevation</div><div class="stat-value">7,349 ft</div></div>
+    </div>
+    <div id="eruption-block">
+      <div id="eruption-label">🌋 Next Eruption</div>
+      <div id="eruption-countdown">--:--</div>
+      <div id="last-eruption">Last: --</div>
+    </div>
+  </div>
+  <div id="accent-line"></div>
+</div>
+
+<script>
+// Set to true to test nighttime mode in browser — set back to false before pushing to v10
+const FORCE_NIGHT = false;
+
+function isNighttime() {
+  if (FORCE_NIGHT) return true;
+  const now = new Date();
+  const mdt = new Date(now.toLocaleString('en-US', { timeZone: 'America/Denver' }));
+  const h = mdt.getHours();
+  return h >= 22 || h < 5;
+}
+
+// Countdown to 5am MDT from whenever night started (10pm MDT)
+// Total night = 420 mins. Work out how far through we are.
+function getNightCountdown() {
+  const now = new Date();
+  const mdt = new Date(now.toLocaleString('en-US', { timeZone: 'America/Denver' }));
+  const h = mdt.getHours();
+  const m = mdt.getMinutes();
+  const s = mdt.getSeconds();
+
+  // Minutes past 10pm, or minutes past midnight into early morning
+  let minsPast;
+  if (h >= 22) {
+    minsPast = (h - 22) * 60 + m;
+  } else {
+    // h is 0-4
+    minsPast = (h + 2) * 60 + m; // 2hrs past midnight = 2hrs after 10pm
+  }
+
+  const totalSec = 420 * 60; // 7 hours in seconds
+  const elapsedSec = minsPast * 60 + s;
+  const remainSec = Math.max(0, totalSec - elapsedSec);
+  return remainSec;
+}
+
+function updateNightCountdown() {
+  if (!isNighttime()) return;
+  const remainSec = getNightCountdown();
+  const hh = String(Math.floor(remainSec / 3600)).padStart(2,'0');
+  const mm = String(Math.floor((remainSec % 3600) / 60)).padStart(2,'0');
+  document.getElementById('night-countdown').textContent = hh+':'+mm;
+}
+
+function setNightMode(night) {
+  document.getElementById('night-message').classList.toggle('visible', night);
+}
+
+setInterval(() => setNightMode(isNighttime()), 60000);
+setInterval(updateNightCountdown, 1000);
+setNightMode(isNighttime());
+updateNightCountdown();
+
+// ─── CLOCK ───
+function updateClock() {
+  const now = new Date();
+  const mdt = new Date(now.toLocaleString('en-US', { timeZone: 'America/Denver' }));
+  const h = String(mdt.getHours()).padStart(2,'0');
+  const m = String(mdt.getMinutes()).padStart(2,'0');
+  const s = String(mdt.getSeconds()).padStart(2,'0');
+  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  document.getElementById('clock').textContent = days[mdt.getDay()]+' '+mdt.getDate()+' '+months[mdt.getMonth()]+' '+mdt.getFullYear()+'  -  '+h+':'+m+':'+s+' MDT';
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ─── ERUPTION DATA ───
+let nextEruptionMs = null;
+async function fetchEruptionData() {
+  try {
+    const res = await fetch('https://www.geysertimes.org/api/v5/predictions_latest/old+faithful');
+    const data = await res.json();
+    if (data.predictions && data.predictions.length > 0) {
+      const p = data.predictions[0];
+      nextEruptionMs = p.prediction * 1000;
+      const lastMDT = new Date(new Date(p.lastReportTime*1000).toLocaleString('en-US',{timeZone:'America/Denver'}));
+      document.getElementById('last-eruption').textContent = 'Last: '+String(lastMDT.getHours()).padStart(2,'0')+':'+String(lastMDT.getMinutes()).padStart(2,'0')+' MDT';
+      return;
+    }
+  } catch(e) {}
+  try {
+    const res = await fetch('https://www.geysertimes.org/api/v5/entries_latest/old+faithful');
+    const data = await res.json();
+    if (data.entries && data.entries.length > 0) {
+      const last = data.entries[0];
+      const lastTime = new Date(last.time * 1000);
+      const intervalMin = (parseInt(last.duration)||0) > 0 && (parseInt(last.duration)||0) < 180 ? 65 : 91;
+      nextEruptionMs = lastTime.getTime() + (intervalMin * 60 * 1000);
+      const lastMDT = new Date(lastTime.toLocaleString('en-US',{timeZone:'America/Denver'}));
+      document.getElementById('last-eruption').textContent = 'Last: '+String(lastMDT.getHours()).padStart(2,'0')+':'+String(lastMDT.getMinutes()).padStart(2,'0')+' MDT';
+    }
+  } catch(e) { if (!nextEruptionMs) { nextEruptionMs = Date.now()+(45*60*1000); document.getElementById('last-eruption').textContent='Awaiting data...'; } }
+}
+
+function updateCountdown() {
+  if (!nextEruptionMs) return;
+  const diff = nextEruptionMs - Date.now();
+  const el = document.getElementById('eruption-countdown');
+  if (diff <= 0) { el.textContent='NOW!'; el.style.color='#e53935'; setTimeout(fetchEruptionData,5*60*1000); return; }
+  const totalSec = Math.floor(diff/1000);
+  el.textContent = String(Math.floor(totalSec/60)).padStart(2,'0')+':'+String(totalSec%60).padStart(2,'0');
+  el.style.color = diff < 5*60*1000 ? '#ff6b6b' : '#ffcc02';
+}
+
+fetchEruptionData();
+setInterval(fetchEruptionData, 5*60*1000);
+setInterval(updateCountdown, 1000);
+
+// ─── WEATHER ───
+async function fetchWeather() {
+  try {
+    const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=44.4605&longitude=-110.8281&current=temperature_2m,relative_humidity_2m,wind_speed_10m,uv_index&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=America%2FDenver');
+    const data = await res.json();
+    const c = data.current;
+    document.getElementById('temperature').textContent = Math.round(c.temperature_2m)+'°F';
+    document.getElementById('wind').textContent = Math.round(c.wind_speed_10m)+' mph';
+    document.getElementById('humidity').textContent = c.relative_humidity_2m+'%';
+    document.getElementById('uv').textContent = c.uv_index??'--';
+  } catch(e) {}
+}
+fetchWeather();
+setInterval(fetchWeather, 10*60*1000);
+
+// ─── SEISMIC ───
+async function fetchSeismic() {
+  try {
+    const url = 'https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime='+new Date(Date.now()-24*3600*1000).toISOString()+'&maxlatitude=45&minlatitude=44&maxlongitude=-110&minlongitude=-111.5&minmagnitude=0&orderby=time&limit=1';
+    const data = await (await fetch(url)).json();
+    const dot = document.getElementById('seismic-dot');
+    const status = document.getElementById('seismic-status');
+    if (data.features?.length > 0) {
+      const q = data.features[0];
+      const mag = parseFloat(q.properties.mag).toFixed(1);
+      const depth = parseFloat(q.geometry.coordinates[2]).toFixed(1);
+      document.getElementById('last-quake').textContent = 'M'+mag+' '+depth+'km';
+      const elevated = mag >= 3;
+      dot.style.background = elevated?'#e53935':'#4caf50';
+      dot.style.boxShadow = elevated?'0 0 8px #e53935':'0 0 8px #4caf50';
+      status.textContent = elevated?'Elevated':'Normal';
+    } else {
+      document.getElementById('last-quake').textContent='None';
+      dot.style.background='#4caf50'; dot.style.boxShadow='0 0 8px #4caf50'; status.textContent='Normal';
+    }
+  } catch(e) {}
+}
+fetchSeismic();
+setInterval(fetchSeismic, 5*60*1000);
+
+// ─── FACTS ───
+const dayFacts = [
+  "The water erupting from Old Faithful right now fell as rain roughly 500 years ago.",
+  "Yellowstone last erupted 640,000 years ago - it was 1,000x more powerful than St. Helens.",
+  "Old Faithful discharges up to 8,400 gallons of boiling water per eruption reaching temps of 204F.",
+  "Yellowstone is home to more than half of all the world's geysers - over 500 in total.",
+  "Wolves were wiped out of Yellowstone. In 1995, 41 were reintroduced. Today there's 120+ (2024)",
+  "Every wild species that was here when Columbus arrived in 1492 still lives in Yellowstone today.",
+  "Yellowstone experiences up to 3,000 earthquakes every year. Most are too small to feel.",
+  "A microbe discovered in Yellowstones hot springs made modern DNA fingerprinting possible.",
+  "In 1869, a magazine rejected an article about Yellowstone's geysers, saying WE DON'T PRINT FICTION!",
+  "Yellowstone's coldest ever recorded temperature: -66F (-54C) in 1933.",
+  "Yellowstone's hottest ever recorded temperature: 99F (37C) in 2002.",
+  "Old Faithful averaged 66 min between eruptions in the 1960s. Today it's 91.",
+  "The vivid colours in Yellowstone's hot springs are actually living bacteria.",
+  "Yellowstone is larger than Rhode Island and Delaware combined.",
+  "Yellowstone is one of the few places grizzly bears were never wiped out.",
+  "Humans have lived in the Yellowstone area for over 11,000 years.",
+  "Yellowstone Lake is the largest high-elevation lake in North America.",
+  "Yellowstone became the world's first national park on March 1, 1872.",
+  "Yellowstone has more than 290 waterfalls within the park.",
+  "There are over 1,000 miles of hiking trails in Yellowstone.",
+  "Bison can sprint at 35 mph. They injure more visitors than any other animal.",
+  "Water deep inside Old Faithful reaches 400F, nearly double the boiling point.",
+  "Yellowstone's Grand Prismatic Spring is so bright NASA can see it from space.",
+  "Yellowstone's ground rises and falls inches each year. The park is breathing.",
+  "Tourists threw so many coins into Morning Glory Pool it changed colour forever.",
+  "Over 20 people have been killed by Yellowstone's boiling hot springs.",
+  "In 2016, a man fell into a Yellowstone hot spring and dissolved within a day.",
+  "In 1988, wildfires burned 36% of Yellowstone - nearly 800,000 acres.",
+  "Old Faithful Inn, built in 1903, is one of the largest log buildings on Earth.",
+  "Yellowstone's crater could fit the city of London inside it - twice.",
+  "A Yellowstone bison weighs 2,000 lbs and can still jump a 6-foot fence.",
+  "Toxic gases from Yellowstone's vents have killed birds, bison and even bears.",
+  "1800s visitors bathed in Yellowstone's springs believing they cured disease.",
+  "In 1877, fleeing warriors crossed Yellowstone and took tourists hostage.",
+  "French fur trappers named it Roche Jaune - Yellow Rock - now Yellowstone.",
+  "Yellowstone's last eruption plunged a third of North America into darkness.",
+  "Yellowstone's last eruption would have been heard around the entire world.",
+  "Yellowstone's extreme microbes helped NASA design tests for life on Mars.",
+  "Yellowstone has a legal Zone of Death where crime can't be prosecuted.",
+  "Watch live cameras from 90+ countries free at EarthLive.TV - no sign-up!"
+];
+
+const nightFacts = [
+  "Old Faithful still erupts through the night - every 60 to 110 minutes, without fail.",
+  "Yellowstone is one of the darkest places in the continental US. The Milky Way is visible to the naked eye.",
+  "Wolves are most active at dawn and dusk. Right now, packs may be moving through the valley.",
+  "Great horned owls, great grey owls and boreal owls all hunt in Yellowstone after dark.",
+  "Grizzly bears are most active around dawn and dusk. They're out there right now.",
+  "Yellowstone's hot springs never cool down. They steam through the night regardless of air temperature.",
+  "Elk are most active at night. Thousands roam the park after dark.",
+  "The magma chamber beneath your screen right now is 3 to 9 miles underground and still moving.",
+  "Yellowstone averages 1,500 to 3,000 earthquakes a year. Many happen in the middle of the night.",
+  "On a clear Yellowstone night the sky holds around 7,500 visible stars - 15x more than most cities.",
+  "The Wapiti Lake wolf pack has been known to howl at night near the Upper Geyser Basin.",
+  "Bison don't sleep in one spot. They roam through the night grazing across the geyser basins.",
+  "The steam rising from Old Faithful's basin right now is the ground itself exhaling.",
+  "Yellowstone has no artificial lighting in its backcountry. Pure darkness and stars.",
+  "Bald eagles roost in Yellowstone's cottonwood trees overnight and return to hunt at first light.",
+  "Watch live cameras from 90+ countries free at EarthLive.TV - no sign-up required."
+];
+
+let factIndex = 0;
+let currentFacts = isNighttime() ? nightFacts : dayFacts;
+const factEl = document.getElementById('fact-text');
+
+function showNextFact() {
+  factEl.classList.add('fade');
+  setTimeout(() => {
+    currentFacts = isNighttime() ? nightFacts : dayFacts;
+    factIndex = (factIndex + 1) % currentFacts.length;
+    factEl.textContent = currentFacts[factIndex];
+    factEl.classList.remove('fade');
+  }, 800);
+}
+factEl.textContent = currentFacts[0];
+setInterval(showNextFact, 15000);
+</script>
+</body>
+</html>
