@@ -215,8 +215,10 @@ setInterval(function() {
 <script>
 // Set to true to test nighttime mode in browser — set back to false before pushing to v10
 const FORCE_NIGHT = false;
+const FORCE_DAY = true;   // TEMP: force live video on regardless of clock - set back to false after test
 
 function isNighttime() {
+  if (FORCE_DAY) return false;
   if (FORCE_NIGHT) return true;
   const now = new Date();
   const mdt = new Date(now.toLocaleString('en-US', { timeZone: 'America/Denver' }));
