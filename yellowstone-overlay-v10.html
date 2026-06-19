@@ -213,29 +213,29 @@ setInterval(function() {
 </div>
 
 <script>
-// Set to true to test nighttime mode in browser — set back to false before pushing to v10
+// Set to true to test nighttime mode in browser
 const FORCE_NIGHT = false;
-const FORCE_DAY = true;   // TEMP: force live video on regardless of clock - set back to false after test
 
+// Night window: 22:30 (1350 mins) to 04:00 (240 mins) MDT
 function isNighttime() {
-  if (FORCE_DAY) return false;
   if (FORCE_NIGHT) return true;
   const now = new Date();
   const mdt = new Date(now.toLocaleString('en-US', { timeZone: 'America/Denver' }));
-  const h = mdt.getHours();
-  return h >= 22 || h < 5;
+  const mins = mdt.getHours() * 60 + mdt.getMinutes();
+  return mins >= 1350 || mins < 240;
 }
 
-// Countdown to 5am MDT - calculate directly from current time
+// Countdown to 4am MDT - calculate directly from current time
 function getNightCountdown() {
   const now = new Date();
   const mdt = new Date(now.toLocaleString('en-US', { timeZone: 'America/Denver' }));
-  const fiveAM = new Date(mdt);
-  fiveAM.setHours(5, 0, 0, 0);
-  if (mdt.getHours() >= 22) {
-    fiveAM.setDate(fiveAM.getDate() + 1);
+  const fourAM = new Date(mdt);
+  fourAM.setHours(4, 0, 0, 0);
+  // If we're in the 22:30+ part of the window, 4am is tomorrow
+  if (mdt.getHours() >= 4) {
+    fourAM.setDate(fourAM.getDate() + 1);
   }
-  const remainMs = fiveAM - mdt;
+  const remainMs = fourAM - mdt;
   return Math.max(0, Math.floor(remainMs / 1000));
 }
 
