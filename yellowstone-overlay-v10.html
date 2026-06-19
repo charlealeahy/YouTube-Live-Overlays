@@ -305,7 +305,19 @@ function updateCountdown() {
   if (!nextEruptionMs) return;
   const diff = nextEruptionMs - Date.now();
   const el = document.getElementById('eruption-countdown');
-  if (diff <= 0) { el.textContent='NOW!'; el.style.color='#e53935'; setTimeout(fetchEruptionData,5*60*1000); return; }
+  if (diff <= 0) {
+    // More than 30 min past due = stale prediction (overnight, staff away) -> sleeping geyser
+    if (diff < -30*60*1000) {
+      el.textContent = '😴';
+      el.style.color = '#ffcc02';
+    } else {
+      // Genuine eruption window - keep the exciting NOW!
+      el.textContent = 'NOW!';
+      el.style.color = '#e53935';
+      setTimeout(fetchEruptionData, 5*60*1000);
+    }
+    return;
+  }
   const totalSec = Math.floor(diff/1000);
   el.textContent = String(Math.floor(totalSec/60)).padStart(2,'0')+':'+String(totalSec%60).padStart(2,'0');
   el.style.color = diff < 5*60*1000 ? '#ff6b6b' : '#ffcc02';
