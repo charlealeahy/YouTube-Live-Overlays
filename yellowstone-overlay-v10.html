@@ -99,15 +99,28 @@ function setOutage(on) {
   }
 }
 
+// Pin hls.js to the highest available quality rung, always.
+function pinHighest() {
+  if (!hls || !hls.levels || !hls.levels.length) return;
+  var top = hls.levels.length - 1;
+  hls.autoLevelCapping = -1;   // no cap on selectable levels
+  hls.currentLevel = top;      // hard-lock to top rung, disables auto-switching
+}
+
 function initPlayer() {
   if (hls) { try { hls.destroy(); } catch (e) {} hls = null; }
   if (Hls.isSupported()) {
     hls = new Hls({
       liveSyncDurationCount: 3,
-      liveMaxLatencyDurationCount: 12
+      liveMaxLatencyDurationCount: 12,
+      capLevelToPlayerSize: false,  // don't let render/window size limit quality
+      startLevel: -1                // overridden to top in MANIFEST_PARSED below
     });
     hls.loadSource(streamUrl);
     hls.attachMedia(video);
+    hls.on(Hls.Events.MANIFEST_PARSED, function() {
+      pinHighest();
+    });
     hls.on(Hls.Events.LEVEL_LOADED, function(event, data) {
       var isLive = !!(data && data.details && data.details.live);
       if (!isLive) {
