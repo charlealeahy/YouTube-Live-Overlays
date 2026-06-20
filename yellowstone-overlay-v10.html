@@ -102,9 +102,9 @@ function setOutage(on) {
 // Pin hls.js to the highest available quality rung, always.
 function pinHighest() {
   if (!hls || !hls.levels || !hls.levels.length) return;
-  var top = hls.levels.length - 1;
-  hls.autoLevelCapping = -1;   // no cap on selectable levels
-  hls.currentLevel = top;      // hard-lock to top rung, disables auto-switching
+  // Let hls.js auto-adapt quality to the proxy's available speed (prevents freezing on slow eco proxy)
+  hls.currentLevel = -1;      // -1 = auto
+  hls.autoLevelCapping = -1;  // no cap, can still use top when bandwidth allows
 }
 
 function initPlayer() {
