@@ -110,11 +110,14 @@ function pinHighest() {
 function initPlayer() {
   if (hls) { try { hls.destroy(); } catch (e) {} hls = null; }
   if (Hls.isSupported()) {
-    hls = new Hls({
-      liveSyncDurationCount: 3,
-      liveMaxLatencyDurationCount: 12,
-      capLevelToPlayerSize: false,  // don't let render/window size limit quality
-      startLevel: -1                // overridden to top in MANIFEST_PARSED below
+hls = new Hls({
+  liveSyncDurationCount: 6,
+  liveMaxLatencyDurationCount: 20,
+  maxBufferLength: 60,
+  maxMaxBufferLength: 120,
+  backBufferLength: 30,
+  capLevelToPlayerSize: false,
+  startLevel: -1
     });
     hls.loadSource(streamUrl);
     hls.attachMedia(video);
