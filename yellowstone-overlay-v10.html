@@ -108,7 +108,6 @@ function pinHighest() {
 }
 
 function initPlayer() {
-  if (isNighttime()) return;
   if (hls) { try { hls.destroy(); } catch (e) {} hls = null; }
   if (Hls.isSupported()) {
 hls = new Hls({
