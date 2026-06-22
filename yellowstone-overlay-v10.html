@@ -111,6 +111,7 @@ function initPlayer() {
   if (hls) { try { hls.destroy(); } catch (e) {} hls = null; }
   if (Hls.isSupported()) {
 hls = new Hls({
+  lowLatencyMode: false,
   liveSyncDurationCount: 6,
   liveMaxLatencyDurationCount: 20,
   maxBufferLength: 60,
