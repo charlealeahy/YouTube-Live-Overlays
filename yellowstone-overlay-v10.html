@@ -129,7 +129,7 @@ hls = new Hls({
       if (!isLive) {
         // Origin is serving a CLOSED recording (#EXT-X-ENDLIST) - do not broadcast the past
         setOutage(true);
-        scheduleRebuild(45000);
+        scheduleRebuild(1800000);
       } else {
         setOutage(false);
       }
