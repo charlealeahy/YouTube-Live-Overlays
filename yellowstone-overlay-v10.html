@@ -77,7 +77,7 @@ function scheduleRebuild(ms) {
 }
 
 function setOutage(on) {
-  if (on && isNighttime()) on = false; // night mode has its own display
+  if (on && isNighttime()) on = false;
   outageActive = on;
   if (on) {
     if (!outageDiv) {
@@ -99,12 +99,10 @@ function setOutage(on) {
   }
 }
 
-// Pin hls.js to the highest available quality rung, always.
 function pinHighest() {
   if (!hls || !hls.levels || !hls.levels.length) return;
-  // Let hls.js auto-adapt quality to the proxy's available speed (prevents freezing on slow eco proxy)
-  hls.currentLevel = -1;      // -1 = auto
-  hls.autoLevelCapping = -1;  // no cap, can still use top when bandwidth allows
+  hls.currentLevel = -1;
+  hls.autoLevelCapping = -1;
 }
 
 function initPlayer() {
@@ -128,7 +126,6 @@ hls = new Hls({
     hls.on(Hls.Events.LEVEL_LOADED, function(event, data) {
       var isLive = !!(data && data.details && data.details.live);
       if (!isLive) {
-        // Origin is serving a CLOSED recording (#EXT-X-ENDLIST) - do not broadcast the past
         setOutage(true);
         scheduleRebuild(1800000);
       } else {
@@ -142,7 +139,7 @@ hls = new Hls({
         } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
           hls.recoverMediaError();
         } else {
-          setTimeout(initPlayer, 5000);
+          hls.startLoad();
         }
       }
     });
@@ -152,30 +149,24 @@ hls = new Hls({
 }
 initPlayer();
 
-// Watchdog: never stall, never fall behind the live edge
 let lastVideoTime = -1;
 setInterval(function() {
   if (!video || isNighttime() || !hls) { lastVideoTime = -1; return; }
   if (outageActive) {
-    // Holding card up: keep video hidden, let the rebuild timer do the retrying
     video.style.display = 'none';
     lastVideoTime = -1;
     return;
   }
   const livePos = hls.liveSyncPosition;
   if (video.currentTime === lastVideoTime) {
-    // Stalled for 30s: rebuild the entire player -> fresh server session at the true live edge
     initPlayer();
     video.play().catch(function(){});
   } else if (livePos && (livePos - video.currentTime) > 30) {
-    // Drifted more than 30s behind live: jump back to the edge
     video.currentTime = livePos;
   }
   lastVideoTime = video.currentTime;
 }, 30000);
 
-// Proactive session refresh: rebuild the player every 30 min so no server
-// session ever lives long enough to go stale (origin is mid network-upgrade)
 setInterval(function() {
   if (!isNighttime()) initPlayer();
 }, 1800000);
@@ -217,10 +208,8 @@ setInterval(function() {
 </div>
 
 <script>
-// Set to true to test nighttime mode in browser
 const FORCE_NIGHT = false;
 
-// Night window: 22:30 (1350 mins) to 04:00 (240 mins) MDT
 function isNighttime() {
   if (FORCE_NIGHT) return true;
   const now = new Date();
@@ -229,13 +218,11 @@ function isNighttime() {
   return mins >= 1350 || mins < 240;
 }
 
-// Countdown to 4am MDT - calculate directly from current time
 function getNightCountdown() {
   const now = new Date();
   const mdt = new Date(now.toLocaleString('en-US', { timeZone: 'America/Denver' }));
   const fourAM = new Date(mdt);
   fourAM.setHours(4, 0, 0, 0);
-  // If we're in the 22:30+ part of the window, 4am is tomorrow
   if (mdt.getHours() >= 4) {
     fourAM.setDate(fourAM.getDate() + 1);
   }
@@ -255,7 +242,6 @@ function setNightMode(night) {
   document.getElementById('bottom-bar').style.display = night ? 'none' : 'block';
   document.getElementById('stream-video').style.display = night ? 'none' : 'block';
 }
-// Run immediately on page load before anything renders
 setNightMode(isNighttime());
 
 setInterval(() => setNightMode(isNighttime()), 60000);
@@ -263,7 +249,6 @@ setInterval(updateNightCountdown, 1000);
 setNightMode(isNighttime());
 updateNightCountdown();
 
-// ─── CLOCK ───
 function updateClock() {
   const now = new Date();
   const mdt = new Date(now.toLocaleString('en-US', { timeZone: 'America/Denver' }));
@@ -277,7 +262,6 @@ function updateClock() {
 setInterval(updateClock, 1000);
 updateClock();
 
-// ─── ERUPTION DATA ───
 let nextEruptionMs = null;
 async function fetchEruptionData() {
   try {
@@ -310,12 +294,10 @@ function updateCountdown() {
   const diff = nextEruptionMs - Date.now();
   const el = document.getElementById('eruption-countdown');
   if (diff <= 0) {
-    // More than 30 min past due = stale prediction (overnight, staff away) -> sleeping geyser
     if (diff < -30*60*1000) {
       el.textContent = '😴';
       el.style.color = '#ffcc02';
     } else {
-      // Genuine eruption window - keep the exciting NOW!
       el.textContent = 'NOW!';
       el.style.color = '#e53935';
       setTimeout(fetchEruptionData, 5*60*1000);
@@ -331,7 +313,6 @@ fetchEruptionData();
 setInterval(fetchEruptionData, 5*60*1000);
 setInterval(updateCountdown, 1000);
 
-// ─── WEATHER ───
 async function fetchWeather() {
   try {
     const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=44.4605&longitude=-110.8281&current=temperature_2m,relative_humidity_2m,wind_speed_10m,uv_index&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=America%2FDenver');
@@ -346,7 +327,6 @@ async function fetchWeather() {
 fetchWeather();
 setInterval(fetchWeather, 10*60*1000);
 
-// ─── SEISMIC ───
 async function fetchSeismic() {
   try {
     const url = 'https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime='+new Date(Date.now()-24*3600*1000).toISOString()+'&maxlatitude=45&minlatitude=44&maxlongitude=-110&minlongitude=-111.5&minmagnitude=0&orderby=time&limit=1';
@@ -371,7 +351,6 @@ async function fetchSeismic() {
 fetchSeismic();
 setInterval(fetchSeismic, 5*60*1000);
 
-// ─── FACTS ───
 const dayFacts = [
   "💧 The water erupting from Old Faithful right now fell as rain roughly 500 years ago.",
   "🌋 Yellowstone last erupted 640,000 years ago - it was 1,000x more powerful than St. Helens.",
